@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "218809920637",
+    "project_id": "beehive-222025",
+    "storage_bucket": "beehive-222025.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:218809920637:android:d84a5a9e4a0173b8b25514",
+        "android_client_info": {
+          "package_name": "com.example.beehive"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaouwq4KiUl8OHytXlZZOekgp2zWQwjag"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
