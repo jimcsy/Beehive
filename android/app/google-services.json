@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "218809920637",
+    "firebase_url": "https://beehive-222025-default-rtdb.asia-southeast1.firebasedatabase.app",
     "project_id": "beehive-222025",
     "storage_bucket": "beehive-222025.firebasestorage.app"
   },
@@ -12,7 +13,20 @@
           "package_name": "com.example.beehive"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "218809920637-pcms76bhaqaihaaj9c2qllcbt4kram26.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.beehive",
+            "certificate_hash": "e86ec319628104176924b3f3b9c0b8de0097f03f"
+          }
+        },
+        {
+          "client_id": "218809920637-3fm1tqd6gpmdn9tifnq22vdt5f33de54.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCaouwq4KiUl8OHytXlZZOekgp2zWQwjag"
@@ -20,7 +34,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "218809920637-3fm1tqd6gpmdn9tifnq22vdt5f33de54.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
