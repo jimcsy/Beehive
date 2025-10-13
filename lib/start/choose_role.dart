@@ -1,3 +1,5 @@
+import 'package:beehive/start/login.dart';
+import 'package:beehive/start/quote_page.dart';
 import 'package:flutter/material.dart';
 import 'signup.dart'; // make sure this path matches your structure
 
@@ -16,7 +18,16 @@ class ChooseRolePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Choose Your Role')),
+      appBar: AppBar(
+        title: const Text('Choose Your Role'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            //Navigator.pushReplacementNamed(context, '/login'); 
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const BuzzIntoCoding()));
+          },
+        ),
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(20),

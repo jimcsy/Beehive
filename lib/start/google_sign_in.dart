@@ -1,8 +1,10 @@
+import 'package:beehive/features/students/students_homepage.dart';
+import 'package:beehive/start/loader.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'homepage.dart';
+import '../features/teachers/teachers_homepage.dart';
 import 'login.dart';
 
 class GoogleSignInProvider extends ChangeNotifier {
@@ -19,7 +21,7 @@ class GoogleSignInProvider extends ChangeNotifier {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (_) => const Center(child: CircularProgressIndicator()),
+        builder: (_) => CustomLoader(),
       );
 
       // 🚪 Force logout before sign-in to show the account chooser
@@ -66,17 +68,30 @@ class GoogleSignInProvider extends ChangeNotifier {
           MaterialPageRoute(builder: (_) => const Login()),
         );
       } else {
-        // 🆕 Save user to Firestore
+        // 🆕 Save user to Firestorer
         await userDoc.set({
           'email': user.email,
-          'role': selectedRole,
+          'role': selectedRole, // make sure this is either "student" or "teacher"
           'createdAt': FieldValue.serverTimestamp(),
         });
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const Homepage()),
-        );
+        // 🧠 Redirect based on selected role
+        if (selectedRole == 'student') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const StudentHomePage()),
+          );
+        } else if (selectedRole == 'teacher') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const TeacherHomePage()),
+          );
+        } else {
+          // fallback (optional)
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Unknown role, please contact admin.')),
+          );
+        }
       }
 
       notifyListeners();

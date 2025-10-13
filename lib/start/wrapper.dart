@@ -1,8 +1,11 @@
+import 'package:beehive/features/students/students_homepage.dart';
+import 'package:beehive/start/landing_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'homepage.dart';
+import '../features/teachers/teachers_homepage.dart';
 import 'login.dart';
 import 'loader.dart';
+import 'email_verification.dart';
 
 class Wrapper extends StatefulWidget {
   const Wrapper({Key? key}) : super(key: key);
@@ -25,12 +28,20 @@ class _WrapperState extends State<Wrapper> {
 
           // ✅ User logged in
           else if (snapshot.hasData) {
-            return const Homepage();
+            User user = snapshot.data!;
+            
+            // Check if email is verified
+            if (user.emailVerified) {
+              return const StudentHomePage();
+            } else {
+              // Redirect to email verification page for unverified users
+              return EmailVerificationPage(user: user);
+            }
           }
 
           // 🚪 No user logged in
           else {
-            return const Login();
+            return const LandingPage();
           }
         },
       ),
