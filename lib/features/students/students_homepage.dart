@@ -1,3 +1,4 @@
+import 'package:beehive/features/students/student_drawer.dart';
 import 'package:beehive/start/loader.dart';
 import 'package:beehive/start/login.dart';
 import 'package:flutter/material.dart';
@@ -93,8 +94,22 @@ class _StudentHomePageState extends State<StudentHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        drawer: const StudentDrawer(), // ✅ connects the drawer here
+
       appBar: AppBar(
         title: const Text("Student Homepage"),
+        // ✅ Builder ensures correct context
+        leading: Builder(
+          builder: (BuildContext context) {
+            return IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () {
+                Scaffold.of(context).openDrawer(); // ✅ works properly
+              },
+              tooltip: 'Open Menu',
+            );
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_rounded),
@@ -103,6 +118,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
           ),
         ],
       ),
+
       body: Center(
         child: isLoading
             ? const CircularProgressIndicator()

@@ -15,10 +15,10 @@ class EmailVerificationPage extends StatefulWidget {
   State<EmailVerificationPage> createState() => _EmailVerificationPageState();
 }
 
-class _EmailVerificationPageState extends State<EmailVerificationPage> with WidgetsBindingObserver {
+class _EmailVerificationPageState extends State<EmailVerificationPage>
+    with WidgetsBindingObserver {
   bool isEmailVerified = false;
   bool canResendEmail = true;
-  bool isCheckingVerification = false;
   int resendCooldown = 0;
   Timer? _timer;
   Timer? _cooldownTimer;
@@ -58,10 +58,6 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> with Widg
   }
 
   Future<void> checkEmailVerified() async {
-    if (isCheckingVerification) return;
-
-    setState(() => isCheckingVerification = true);
-
     try {
       await widget.user.reload();
       final user = FirebaseAuth.instance.currentUser;
@@ -78,7 +74,6 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> with Widg
             ),
           );
 
-          // Wait a bit before redirect
           await Future.delayed(const Duration(milliseconds: 1200));
 
           if (mounted) {
@@ -88,15 +83,13 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> with Widg
       }
     } catch (e) {
       debugPrint('Error checking email verification: $e');
-    } finally {
-      if (mounted) setState(() => isCheckingVerification = false);
     }
   }
 
-  /// 🔹 This checks the user's role in Firestore and navigates accordingly
   Future<void> _navigateBasedOnRole(String uid) async {
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
       if (doc.exists) {
         final role = doc.data()?['role'];
@@ -113,12 +106,16 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> with Widg
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Role not found. Please contact admin.'), backgroundColor: Colors.red),
+            const SnackBar(
+                content: Text('Role not found. Please contact admin.'),
+                backgroundColor: Colors.red),
           );
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User record not found.'), backgroundColor: Colors.red),
+          const SnackBar(
+              content: Text('User record not found.'),
+              backgroundColor: Colors.red),
         );
       }
     } catch (e) {
@@ -159,7 +156,9 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> with Widg
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error sending verification: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Error sending verification: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -179,29 +178,25 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> with Widg
 
   @override
   Widget build(BuildContext context) {
-    return LoaderOverlay(
-      isLoading: isCheckingVerification,
-      child: Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: const Text('Verify Your Email'),
-          actions: [
-            TextButton(
-              onPressed: _signOut,
-              child: const Text('Sign Out', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text('Verify Your Email'),
+      ),
+      body: SafeArea(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.email_outlined, size: 100, color: Colors.blue),
                 const SizedBox(height: 30),
-                const Text('Check Your Email',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Check Your Email',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 15),
                 Container(
                   padding: const EdgeInsets.all(15),
@@ -211,7 +206,8 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> with Widg
                   ),
                   child: Text(
                     widget.user.email ?? 'your email',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -221,23 +217,18 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> with Widg
                   style: TextStyle(fontSize: 16, color: Colors.grey),
                 ),
                 const SizedBox(height: 30),
-                if (isCheckingVerification)
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2)),
-                      SizedBox(width: 10),
-                      Text('Checking verification status...'),
-                    ],
+
+                if (!isEmailVerified)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 20),
+                    child: DotLoadingAnimation(),
                   ),
+
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: isCheckingVerification ? null : checkEmailVerified,
+                    onPressed: checkEmailVerified,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 15),
                     ),
@@ -268,6 +259,52 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> with Widg
           ),
         ),
       ),
+    ),
+
+    );
+  }
+}
+
+/// 🌙 Subtle 3-dot loading animation (non-distracting)
+class DotLoadingAnimation extends StatefulWidget {
+  const DotLoadingAnimation({super.key});
+
+  @override
+  State<DotLoadingAnimation> createState() => _DotLoadingAnimationState();
+}
+
+class _DotLoadingAnimationState extends State<DotLoadingAnimation>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller =
+      AnimationController(vsync: this, duration: const Duration(seconds: 1))
+        ..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (_, __) {
+        int activeDot = (_controller.value * 3).floor() % 3;
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(3, (index) {
+            return AnimatedOpacity(
+              opacity: index == activeDot ? 1.0 : 0.3,
+              duration: const Duration(milliseconds: 300),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: CircleAvatar(radius: 5, backgroundColor: Colors.blue),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }

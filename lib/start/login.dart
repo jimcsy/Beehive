@@ -20,49 +20,101 @@ class _LoginState extends State<Login> {
   bool isLoading = false;
   bool _obscureText = true; // Add this in your State class
   
-  // Email & password login
   Future<void> signIn() async {
-    if (email.text.trim().isEmpty || password.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("⚠️ Please fill in both email and password fields."),
-        ),
-      );
-      return;
-    }
+  final String userEmail = email.text.trim();
+  final String userPassword = password.text.trim();
 
-    setState(() => isLoading = true);
-    try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email.text.trim(),
-        password: password.text.trim(),
-      );
+  // Step 1: Validation
+  if (userEmail.isEmpty || userPassword.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("⚠️ Please fill in both email and password fields."),
+      ),
+    );
+    return;
+  }
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const StudentHomePage()),
-      );
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("No account found. Redirecting to Sign Up...")),
-        );
+  setState(() => isLoading = true);
 
-        await Future.delayed(const Duration(seconds: 2));
+  try {
+    // Step 2: Firebase Sign-in
+    UserCredential userCredential = await FirebaseAuth.instance
+        .signInWithEmailAndPassword(
+      email: userEmail,
+      password: userPassword,
+    );
 
+    // Step 3: Get UID and fetch Firestore data
+    final String uid = userCredential.user!.uid;
+    final userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+    if (userDoc.exists) {
+      final role = userDoc.data()?['role'] ?? '';
+
+      // Step 4: Navigate based on user role
+      if (role == 'student') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const BuzzIntoCoding()),
+          MaterialPageRoute(builder: (context) => const StudentHomePage()),
+        );
+      } else if (role == 'teacher') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const TeacherHomePage()),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Login failed')),
+          const SnackBar(
+            content: Text("⚠️ No role assigned to this account."),
+          ),
         );
       }
-    } finally {
-      setState(() => isLoading = false);
+    } else {
+      // Handle missing user document
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("⚠️ Account exists but no user data found."),
+        ),
+      );
     }
+  } on FirebaseAuthException catch (e) {
+    // Step 5: Handle specific Firebase errors
+    String message;
+    switch (e.code) {
+      case 'user-not-found':
+        message = 'No user found with this email.';
+        break;
+      case 'wrong-password':
+        message = 'Incorrect password. Please try again.';
+        break;
+      case 'invalid-email':
+        message = 'Invalid email format.';
+        break;
+      case 'too-many-requests':
+        message = 'Too many failed attempts. Try again later.';
+        break;
+      case 'invalid-credential':
+        message =
+            'Authentication failed. Please check your email and password.';
+        break;
+      default:
+        message = e.message ?? 'Login failed. Please try again.';
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  } catch (e) {
+    // Step 6: Catch unexpected errors
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Unexpected error: $e')),
+    );
+  } finally {
+    setState(() => isLoading = false);
   }
+}
+
 
   // Google login
 Future<void> signInWithGoogle() async {
