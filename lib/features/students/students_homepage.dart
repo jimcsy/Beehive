@@ -1,3 +1,7 @@
+import 'package:beehive/features/students/join_room.dart';
+import 'package:beehive/features/students/s_notification_page.dart';
+import 'package:beehive/features/students/s_profile_page.dart';
+import 'package:beehive/features/students/s_rooms_page.dart';
 import 'package:beehive/features/students/student_drawer.dart';
 import 'package:beehive/start/loader.dart';
 import 'package:beehive/start/login.dart';
@@ -19,6 +23,8 @@ class _StudentHomePageState extends State<StudentHomePage> {
   String? role;
   bool isLoading = true;
 
+  int _selectedIndex = 0;
+
   @override
   void initState() {
     super.initState();
@@ -27,7 +33,6 @@ class _StudentHomePageState extends State<StudentHomePage> {
 
   Future<void> fetchUserRole() async {
     try {
-      // 🔹 Try fetching the user document by UID
       final doc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user?.uid)
@@ -39,7 +44,6 @@ class _StudentHomePageState extends State<StudentHomePage> {
           isLoading = false;
         });
       } else {
-        // 🔹 If UID doc doesn’t exist, try fetching by email (for Google users)
         final query = await FirebaseFirestore.instance
             .collection('users')
             .where('email', isEqualTo: user?.email)
@@ -91,20 +95,56 @@ class _StudentHomePageState extends State<StudentHomePage> {
     }
   }
 
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  // Pages for bottom navigation
+  List<Widget> get _pages => [
+        // 🏠 Home
+        Center(
+          child: isLoading
+              ? const CircularProgressIndicator()
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Welcome, ${user?.email ?? "No user"}',
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '🎓 Role: ${role ?? "N/A"}',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+        // 📚 Rooms
+        const StudentRoomPage(),
+        const StudentNotificationPage(),
+        const StudentProfilePage(),
+      ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        drawer: const StudentDrawer(), // ✅ connects the drawer here
-
+      drawer: const StudentDrawer(),
       appBar: AppBar(
-        title: const Text("Student Homepage"),
-        // ✅ Builder ensures correct context
+        title: Text(['Home', 'Rooms', 'Notifications', 'Profile']
+            [_selectedIndex]),
         leading: Builder(
           builder: (BuildContext context) {
             return IconButton(
               icon: const Icon(Icons.menu),
               onPressed: () {
-                Scaffold.of(context).openDrawer(); // ✅ works properly
+                Scaffold.of(context).openDrawer();
               },
               tooltip: 'Open Menu',
             );
@@ -118,33 +158,23 @@ class _StudentHomePageState extends State<StudentHomePage> {
           ),
         ],
       ),
+      body: _pages[_selectedIndex],
 
-      body: Center(
-        child: isLoading
-            ? const CircularProgressIndicator()
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Welcome, ${user?.email ?? "No user"}',
-                    style: const TextStyle(fontSize: 18),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '🎓 Role: ${role ?? "N/A"}',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                ],
-              ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: signout,
-        icon: const Icon(Icons.logout_rounded),
-        label: const Text("Logout"),
+      
+
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        selectedItemColor: const Color(0xFFA27221),
+        unselectedItemColor: Colors.grey,
+        showUnselectedLabels: true,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.meeting_room), label: 'Room'),
+          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notifications'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
       ),
     );
   }

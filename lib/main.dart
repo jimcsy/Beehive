@@ -26,6 +26,16 @@ class MyApp extends StatelessWidget {
         title: 'Beehive',
         theme: ThemeData(
           primarySwatch: Colors.amber,
+
+          bottomNavigationBarTheme: BottomNavigationBarThemeData(
+          selectedItemColor: const Color(0xFFA27221), // Your selected icon color
+          unselectedItemColor: Colors.grey,           // Unselected icons
+          backgroundColor: Colors.white,              // Background color
+          enableFeedback: true,                       // Enable tap feedback
+          type: BottomNavigationBarType.fixed,        // Fixed type (optional)
+        ),
+        splashColor: Color(0xFFF4E3C2),                   // Ripple color when tapped
+        highlightColor: Color(0xFFF4E3C2).withOpacity(0.2), // Highlight when tapping
         ),
         home: Wrapper(), // This will listen for auth state
       ),
