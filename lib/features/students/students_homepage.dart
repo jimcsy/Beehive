@@ -126,7 +126,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
                   ],
                 ),
         ),
-        // 📚 Rooms
+        // 📚 Modules
         const StudentRoomPage(),
         const StudentNotificationPage(),
         const StudentProfilePage(),
@@ -137,7 +137,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
     return Scaffold(
       drawer: const StudentDrawer(),
       appBar: AppBar(
-        title: Text(['Home', 'Rooms', 'Notifications', 'Profile']
+        title: Text(['Home', 'Modules', 'Notifications', 'Profile']
             [_selectedIndex]),
         leading: Builder(
           builder: (BuildContext context) {

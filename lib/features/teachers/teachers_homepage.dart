@@ -123,39 +123,93 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                   final rooms = snapshot.data!.docs;
 
                   return ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: rooms.length,
-                    itemBuilder: (context, index) {
-                      final room = rooms[index];
-                      final className = room['className'] ?? 'Unnamed Class';
-                      final subject = room['subject'] ?? 'No Subject';
-                      final section = room['section'] ?? 'No Section';
+                  padding: const EdgeInsets.all(16),
+                  itemCount: rooms.length,
+                  itemBuilder: (context, index) {
+                    final room = rooms[index];
+                    final className = room['className'] ?? 'Unnamed Class';
+                    final subject = room['subject'] ?? 'No Subject';
+                    final section = room['section'] ?? 'No Section';
+                    final roomId = room.id; // Firestore document ID
 
-                      return GestureDetector(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Opening $className...')),
-                          );
-                        },
-                        child: Card(
-                          elevation: 4,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.all(12),
-                            title: Text(
-                              "$className - $subject",
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Text("Section: $section"),
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                          ),
+                    return Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(12),
+                        title: Text(
+                          "$className - $subject",
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
-                      );
-                    },
-                  );
+                        subtitle: Text("Section: $section"),
+                        trailing: PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert),
+                          onSelected: (value) async {
+                            if (value == 'delete') {
+                              // Show confirmation dialog before deleting
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Delete Room'),
+                                  content: Text('Are you sure you want to delete "$className"?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, true),
+                                      child: const Text(
+                                        'Delete',
+                                        style: TextStyle(color: Colors.red),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+
+                              if (confirm ?? false) {
+                                try {
+                                  await FirebaseFirestore.instance
+                                      .collection('rooms')
+                                      .doc(roomId)
+                                      .delete();
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Room "$className" deleted successfully')),
+                                  );
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Failed to delete room')),
+                                  );
+                                  debugPrint('Delete room error: $e');
+                                }
+                              }
+                            } else if (value == 'edit') {
+                              // TODO: Handle edit later
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Edit $className tapped')),
+                              );
+                            }
+                          },
+                          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                            const PopupMenuItem<String>(
+                              value: 'edit',
+                              child: Text('Edit Room'),
+                            ),
+                            const PopupMenuItem<String>(
+                              value: 'delete',
+                              child: Text('Delete Room'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
                 },
               ),
             const ModulesPage(),

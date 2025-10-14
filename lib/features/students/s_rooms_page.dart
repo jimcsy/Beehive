@@ -47,8 +47,20 @@ class _StudentRoomPageState extends State<StudentRoomPage> {
                     .doc(roomId)
                     .get(),
                 builder: (context, roomSnapshot) {
-                  if (!roomSnapshot.hasData) {
+                  if (roomSnapshot.connectionState == ConnectionState.waiting) {
                     return const SizedBox();
+                  }
+
+                  if (!roomSnapshot.hasData || !roomSnapshot.data!.exists) {
+                    // Room deleted — optionally remove from student's joinedRooms
+                    FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(user!.uid)
+                        .collection('joinedRooms')
+                        .doc(roomId)
+                        .delete();
+
+                    return const SizedBox(); // skip deleted room
                   }
 
                   final room = roomSnapshot.data!;
@@ -85,7 +97,6 @@ class _StudentRoomPageState extends State<StudentRoomPage> {
         },
       ),
 
-      // Optional floating button
       floatingActionButton: HexFloatingButton(
         onPressed: () {
           showDialog(
