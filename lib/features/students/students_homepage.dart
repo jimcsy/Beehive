@@ -2,7 +2,7 @@ import 'package:beehive/features/students/join_room.dart';
 import 'package:beehive/features/students/s_notification_page.dart';
 import 'package:beehive/features/students/s_profile_page.dart';
 import 'package:beehive/features/students/s_rooms_page.dart';
-import 'package:beehive/features/students/student_drawer.dart';
+import 'package:beehive/features/utils/drawer.dart';
 import 'package:beehive/start/loader.dart';
 import 'package:beehive/start/login.dart';
 import 'package:flutter/material.dart';
@@ -134,8 +134,30 @@ class _StudentHomePageState extends State<StudentHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('rooms')
+          .where('createdBy', isEqualTo: currentUser?.email)
+          .snapshots(),
+      builder: (context, roomSnapshot) {
+        if (roomSnapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
+        }
+        if (roomSnapshot.hasError) {
+          return const Scaffold(
+              body: Center(child: Text('Error loading rooms.')));
+        }
+
+        final rooms = roomSnapshot.data?.docs ?? [];
     return Scaffold(
-      drawer: const StudentDrawer(),
+      drawer: UserDrawer(
+            user: currentUser,
+            rooms: rooms,
+            onSignOut: signout,
+          ),
       appBar: AppBar(
         title: Text(['Home', 'Modules', 'Notifications', 'Profile']
             [_selectedIndex]),
@@ -150,13 +172,6 @@ class _StudentHomePageState extends State<StudentHomePage> {
             );
           },
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: signout,
-            tooltip: 'Logout',
-          ),
-        ],
       ),
       body: _pages[_selectedIndex],
 
@@ -178,4 +193,6 @@ class _StudentHomePageState extends State<StudentHomePage> {
       ),
     );
   }
+    );
+}
 }

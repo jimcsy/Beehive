@@ -1,9 +1,10 @@
 import 'package:beehive/features/teachers/create_room.dart';
 import 'package:beehive/design/hexagonal.dart';
+import 'package:beehive/features/teachers/notify_students.dart';
 import 'package:beehive/features/teachers/t_modules_page.dart';
 import 'package:beehive/features/teachers/t_notifications_page.dart';
 import 'package:beehive/features/teachers/t_profile_page.dart';
-import 'package:beehive/features/teachers/teacher_drawer.dart';
+import 'package:beehive/features/utils/drawer.dart';
 import 'package:beehive/start/login.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -91,10 +92,23 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
 
                             if (confirm ?? false) {
                               try {
+                                debugPrint('🚀 Starting room deletion process for: $className ($roomId)');
+                                
+                                // 1️⃣ Send notifications to students BEFORE deleting room
+                                await notifyStudentsOnRoomDelete(
+                                  className: className,
+                                  subject: subject,
+                                  roomId: roomId,
+                                  teacherName: "Prof. ${FirebaseAuth.instance.currentUser?.displayName ?? FirebaseAuth.instance.currentUser?.email ?? 'Unknown Teacher'}",
+                                );
+
+                                // 2️⃣ Delete the room
                                 await FirebaseFirestore.instance
                                     .collection('rooms')
                                     .doc(roomId)
                                     .delete();
+
+                                debugPrint('✅ Room deletion completed successfully');
 
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
@@ -181,7 +195,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
         final rooms = roomSnapshot.data?.docs ?? [];
 
         return Scaffold(
-          drawer: TeacherDrawer(
+          drawer: UserDrawer(
             user: currentUser,
             rooms: rooms,
             onSignOut: signout,
