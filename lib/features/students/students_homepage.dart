@@ -126,10 +126,13 @@ class _StudentHomePageState extends State<StudentHomePage> {
                   ],
                 ),
         ),
-        // 📚 Modules
+        // 📚 Rooms
         const StudentRoomPage(),
+        // 🔔 Notifications
         const StudentNotificationPage(),
-        const StudentProfilePage(),
+        // 👤 Profile
+        // This now passes the function to switch to tab 0
+        StudentProfilePage(onGoToHome: () => _onItemTapped(0)),
       ];
 
   @override
@@ -137,62 +140,62 @@ class _StudentHomePageState extends State<StudentHomePage> {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('rooms')
-          .where('createdBy', isEqualTo: currentUser?.email)
-          .snapshots(),
-      builder: (context, roomSnapshot) {
-        if (roomSnapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-              body: Center(child: CircularProgressIndicator()));
-        }
-        if (roomSnapshot.hasError) {
-          return const Scaffold(
-              body: Center(child: Text('Error loading rooms.')));
-        }
+        stream: FirebaseFirestore.instance
+            .collection('rooms')
+            .where('createdBy', isEqualTo: currentUser?.email)
+            .snapshots(),
+        builder: (context, roomSnapshot) {
+          if (roomSnapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+                body: Center(child: CircularProgressIndicator()));
+          }
+          if (roomSnapshot.hasError) {
+            return const Scaffold(
+                body: Center(child: Text('Error loading rooms.')));
+          }
 
-        final rooms = roomSnapshot.data?.docs ?? [];
-    return Scaffold(
-      drawer: UserDrawer(
-            user: currentUser,
-            rooms: rooms,
-            onSignOut: signout,
-          ),
-      appBar: AppBar(
-        title: Text(['Home', 'Modules', 'Notifications', 'Profile']
-            [_selectedIndex]),
-        leading: Builder(
-          builder: (BuildContext context) {
-            return IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () {
-                Scaffold.of(context).openDrawer();
-              },
-              tooltip: 'Open Menu',
-            );
-          },
-        ),
-      ),
-      body: _pages[_selectedIndex],
-
-      
-
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: const Color(0xFFA27221),
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.meeting_room), label: 'Room'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notifications'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
-    );
+          final rooms = roomSnapshot.data?.docs ?? [];
+          return Scaffold(
+            drawer: UserDrawer(
+              user: currentUser,
+              rooms: rooms,
+              onSignOut: signout,
+            ),
+            
+            // This conditionally hides the AppBar
+            appBar: _selectedIndex == 3
+                ? null
+                : AppBar(
+                    title: Text(['Home', 'Room', 'Notifications', 'Profile']
+                        [_selectedIndex]),
+                    leading: Builder(
+                      builder: (BuildContext context) {
+                        return IconButton(
+                          icon: const Icon(Icons.menu),
+                          onPressed: () {
+                            Scaffold.of(context).openDrawer();
+                          },
+                          tooltip: 'Open Menu',
+                        );
+                      },
+                    ),
+                  ),
+            body: _pages[_selectedIndex],
+            bottomNavigationBar: BottomNavigationBar(
+              type: BottomNavigationBarType.fixed,
+              currentIndex: _selectedIndex,
+              onTap: _onItemTapped,
+              selectedItemColor: const Color(0xFFA27221),
+              unselectedItemColor: Colors.grey,
+              showUnselectedLabels: true,
+              items: const [
+                BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+                BottomNavigationBarItem(icon: Icon(Icons.meeting_room), label: 'Room'),
+                BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notifications'),
+                BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+              ],
+            ),
+          );
+        });
   }
-    );
-}
 }
