@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
+import 'package:beehive/features/utils/edit_profile.dart';
 
 class StudentProfilePage extends StatefulWidget {
   final VoidCallback onGoToHome;
@@ -69,7 +70,13 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
           }
 
           final userData = snapshot.data!.data() as Map<String, dynamic>?;
-          final displayName = userData?['displayName'] ?? 'Student Name';
+          final String firstName = userData?['firstName'] ?? '';
+          final String lastName = userData?['lastName'] ?? '';
+
+          // Combine them for display, with a fallback
+          final String displayName = (firstName.isNotEmpty || lastName.isNotEmpty)
+              ? '$firstName $lastName'.trim()
+              : 'Student Name';
           final email = userData?['email'] ?? 'student.email@example.com';
           final photoURL = userData?['photoURL'];
 
@@ -168,7 +175,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                     child: photoURL == null
                         ? Center(
                             child: Text(
-                              displayName.isNotEmpty ? displayName[0] : 'S',
+                              firstName.isNotEmpty ? firstName[0].toUpperCase() : 'S',
                               style: const TextStyle(fontSize: 60, color: Colors.black54),
                             ),
                           )
@@ -194,8 +201,41 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                 child: SafeArea(
                   child: IconButton(
                     icon: const Icon(Icons.edit_outlined, color: Colors.white),
-                    onPressed: () {
-                      // TODO: Implement edit profile functionality
+                    onPressed: () async {
+                      // --- Academic Explanation ---
+                      // 1. We 'await' the result from Navigator.push. This pauses
+                      //    this function until the 'EditProfilePage' is 'popped' (closed).
+                      final bool? profileWasUpdated = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EditProfilePage(
+                            // 2. We pass the 'userData' map we already fetched
+                            //    into the constructor of our new edit page.
+                            //    This is how the edit page knows the current name/photoURL.
+                            userData: userData ?? {},
+                          ),
+                        ),
+                      );
+
+                      // 3. In edit_profile.dart, we wrote 'Navigator.pop(true)'
+                      //    on a successful save. We check for that 'true' value here.
+                      //    This is a common "callback" pattern for navigation.
+                      //
+                      // 4. The 'if (mounted)' check is a best practice. It ensures
+                      //    this widget is still part of the tree before calling setState
+                      //    (prevents errors if the user, for example, logged out
+                      //    while the edit page was open).
+                      if (profileWasUpdated == true && mounted) {
+                        // 5. This is the most important part for a "smooth" experience:
+                        //    We call setState and re-assign our '_userFuture'.
+                        //    This tells the FutureBuilder to re-run its 'future'
+                        //    (the _getOrCreateUserProfile() function), which
+                        //    fetches the new, updated data from Firestore and
+                        //    refreshes the UI.
+                        setState(() {
+                          _userFuture = _getOrCreateUserProfile();
+                        });
+                      }
                     },
                   ),
                 ),
