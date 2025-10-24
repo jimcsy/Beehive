@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'signup.dart';
 import 'login.dart';
-import 'quote_page.dart';
 
 class ChooseRolePage extends StatefulWidget {
   const ChooseRolePage({super.key});
@@ -70,13 +69,12 @@ class _ChooseRolePageState extends State<ChooseRolePage> {
                   backgroundColor: const Color(0xFFFEF2CD),
                   foregroundColor: Colors.black,
                   minimumSize: const Size(double.infinity, 90),
-                  elevation: 0,
                   padding: const EdgeInsets.all(16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(
                       color: selectedRole == 'student'
-                          ? Colors.amber
+                          ? const Color(0xFFB47B24)
                           : Colors.transparent,
                       width: 2,
                     ),
@@ -85,7 +83,7 @@ class _ChooseRolePageState extends State<ChooseRolePage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: const [
-                    Icon(Icons.school, size: 36),
+                    Icon(Icons.school, size: 36), //change to match figma design
                     SizedBox(height: 8),
                     Text(
                       'I am a student',
@@ -112,13 +110,12 @@ class _ChooseRolePageState extends State<ChooseRolePage> {
                   backgroundColor: const Color(0xFFFEF2CD),
                   foregroundColor: Colors.black,
                   minimumSize: const Size(double.infinity, 90),
-                  elevation: 0,
                   padding: const EdgeInsets.all(16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(
                       color: selectedRole == 'teacher'
-                          ? Colors.amber
+                          ? const Color(0xFFB47B24)
                           : Colors.transparent,
                       width: 2,
                     ),
@@ -127,17 +124,18 @@ class _ChooseRolePageState extends State<ChooseRolePage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: const [
-                    Icon(Icons.person, size: 36),
-                    SizedBox(height: 8),
+                    Icon(Icons.person, size: 36), //change to match figma design
                     Text(
                       'I am a teacher',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    SizedBox(height: 8),
                     Text(
                       'Create lessons and guide learners.',
+                      textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 14),
                     ),
                   ],

@@ -33,7 +33,7 @@ class _BuzzIntoCodingState extends State<BuzzIntoCoding> {
                     ),
                     const SizedBox(height: 20),
                     const Text(
-                      "Interactive problem-solving that’s effective, fun, and accessible for everyone.",
+                      "Interactive problem-solving that ’s effective, fun, and accessible for everyone.",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
@@ -73,7 +73,7 @@ class _BuzzIntoCodingState extends State<BuzzIntoCoding> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                         child: const Text(
-                          'Next',
+                          'Continue',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
