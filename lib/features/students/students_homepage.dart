@@ -2,7 +2,7 @@ import 'package:beehive/features/students/join_room.dart';
 import 'package:beehive/features/students/s_notification_page.dart';
 import 'package:beehive/features/students/s_profile_page.dart';
 import 'package:beehive/features/students/s_rooms_page.dart';
-import 'package:beehive/features/students/student_drawer.dart';
+import 'package:beehive/features/utils/drawer.dart';
 import 'package:beehive/start/loader.dart';
 import 'package:beehive/start/login.dart';
 import 'package:flutter/material.dart';
@@ -126,56 +126,76 @@ class _StudentHomePageState extends State<StudentHomePage> {
                   ],
                 ),
         ),
-        // 📚 Modules
+        // 📚 Rooms
         const StudentRoomPage(),
+        // 🔔 Notifications
         const StudentNotificationPage(),
-        const StudentProfilePage(),
+        // 👤 Profile
+        // This now passes the function to switch to tab 0
+        StudentProfilePage(onGoToHome: () => _onItemTapped(0)),
       ];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      drawer: const StudentDrawer(),
-      appBar: AppBar(
-        title: Text(['Home', 'Modules', 'Notifications', 'Profile']
-            [_selectedIndex]),
-        leading: Builder(
-          builder: (BuildContext context) {
-            return IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () {
-                Scaffold.of(context).openDrawer();
-              },
-              tooltip: 'Open Menu',
-            );
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: signout,
-            tooltip: 'Logout',
-          ),
-        ],
-      ),
-      body: _pages[_selectedIndex],
+    final currentUser = FirebaseAuth.instance.currentUser;
 
-      
+    return StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('rooms')
+            .where('createdBy', isEqualTo: currentUser?.email)
+            .snapshots(),
+        builder: (context, roomSnapshot) {
+          if (roomSnapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+                body: Center(child: CircularProgressIndicator()));
+          }
+          if (roomSnapshot.hasError) {
+            return const Scaffold(
+                body: Center(child: Text('Error loading rooms.')));
+          }
 
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: const Color(0xFFA27221),
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.meeting_room), label: 'Room'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notifications'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
-    );
+          final rooms = roomSnapshot.data?.docs ?? [];
+          return Scaffold(
+            drawer: UserDrawer(
+              user: currentUser,
+              rooms: rooms,
+              onSignOut: signout,
+            ),
+            
+            // This conditionally hides the AppBar
+            appBar: _selectedIndex == 3
+                ? null
+                : AppBar(
+                    title: Text(['Home', 'Room', 'Notifications', 'Profile']
+                        [_selectedIndex]),
+                    leading: Builder(
+                      builder: (BuildContext context) {
+                        return IconButton(
+                          icon: const Icon(Icons.menu),
+                          onPressed: () {
+                            Scaffold.of(context).openDrawer();
+                          },
+                          tooltip: 'Open Menu',
+                        );
+                      },
+                    ),
+                  ),
+            body: _pages[_selectedIndex],
+            bottomNavigationBar: BottomNavigationBar(
+              type: BottomNavigationBarType.fixed,
+              currentIndex: _selectedIndex,
+              onTap: _onItemTapped,
+              selectedItemColor: const Color(0xFFA27221),
+              unselectedItemColor: Colors.grey,
+              showUnselectedLabels: true,
+              items: const [
+                BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+                BottomNavigationBarItem(icon: Icon(Icons.meeting_room), label: 'Room'),
+                BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notifications'),
+                BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+              ],
+            ),
+          );
+        });
   }
 }
