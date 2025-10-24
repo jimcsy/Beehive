@@ -1,4 +1,3 @@
-import 'package:beehive/start/loader.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -159,18 +158,6 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
           SnackBar(
               content: Text('Error sending verification: $e'),
               backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  Future<void> _signOut() async {
-    try {
-      await FirebaseAuth.instance.signOut();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error signing out')),
         );
       }
     }

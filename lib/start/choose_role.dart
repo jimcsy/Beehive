@@ -1,4 +1,3 @@
-import 'package:beehive/start/login.dart';
 import 'package:beehive/start/quote_page.dart';
 import 'package:flutter/material.dart';
 import 'signup.dart'; // make sure this path matches your structure

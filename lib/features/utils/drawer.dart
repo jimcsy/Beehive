@@ -148,8 +148,8 @@ class UserDrawer extends StatelessWidget {
                   backgroundColor: Colors.brown,
                   child: Icon(Icons.code, color: Colors.white, size: 18),
                 ),
-                title: Text(className),
-                subtitle: Text(section),
+                title: Text(className, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                subtitle: Text(section, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w400)),
                 onTap: () {
                   _navigateTo(context, const ModulesPage());
                 },

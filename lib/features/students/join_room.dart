@@ -34,7 +34,6 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
         return;
       }
 
-      // 🔹 Add the student under a "members" subcollection
       await FirebaseFirestore.instance
           .collection('rooms')
           .doc(code)
@@ -45,7 +44,6 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
         'joinedAt': FieldValue.serverTimestamp(),
       });
 
-      // 🔹 Optionally, also save joined rooms under the student’s profile
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user!.uid)
@@ -57,6 +55,7 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
       });
 
       Navigator.pop(context);
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Joined room successfully!")),
       );
@@ -69,27 +68,60 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text("Join Room"),
-      content: TextField(
-        controller: codeController,
-        decoration: const InputDecoration(
-          labelText: "Enter Room Code",
-          border: OutlineInputBorder(),
+    return Center(
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.95), // semi-transparent
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Join Room",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: codeController,
+                decoration: const InputDecoration(
+                  labelText: "Enter Room Code",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Cancel"),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: isLoading ? null : joinRoom,
+                    child: isLoading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text("Join"),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text("Cancel"),
-        ),
-        ElevatedButton(
-          onPressed: isLoading ? null : joinRoom,
-          child: isLoading
-              ? const CircularProgressIndicator(color: Colors.white)
-              : const Text("Join"),
-        ),
-      ],
     );
   }
 }
+

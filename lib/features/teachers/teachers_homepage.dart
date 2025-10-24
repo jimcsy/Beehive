@@ -1,10 +1,12 @@
 import 'package:beehive/features/teachers/create_room.dart';
 import 'package:beehive/design/hexagonal.dart';
 import 'package:beehive/features/teachers/notify_students.dart';
+import 'package:beehive/features/teachers/rooms/view_room.dart';
 import 'package:beehive/features/teachers/t_modules_page.dart';
 import 'package:beehive/features/teachers/t_notifications_page.dart';
 import 'package:beehive/features/teachers/t_profile_page.dart';
 import 'package:beehive/features/utils/drawer.dart';
+import 'package:beehive/features/utils/show_modal.dart';
 import 'package:beehive/start/login.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -27,7 +29,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
         rooms.isEmpty
             ? const Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(25),
+                  padding: const EdgeInsets.all(16),
                   child: Text(
                     "No rooms created yet.",
                     style: TextStyle(fontSize: 14, color: Colors.black),
@@ -44,100 +46,239 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                   final section = room['section'] ?? 'No Section';
                   final roomId = room.id;
 
-                  return Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
+                return Padding(
+                  padding: const EdgeInsets.all(3.0),
+                  child: Card(
+                  //elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFA0701F), Color(0xFFE8A319)], 
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12), // Match Card's shape
+                  ),
+                    child: InkWell(
                       borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(12),
-                      title: Text(
-                        "$className - $subject",
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text("Section: $section"),
-                      trailing: PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert),
-                        onSelected: (value) async {
-                          if (value == 'edit') {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text('Edit "$className" tapped')),
-                            );
-                          } else if (value == 'delete') {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Delete Room'),
-                                content: Text(
-                                    'Are you sure you want to delete "$className"?'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, false),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, true),
-                                    child: const Text(
-                                      'Delete',
-                                      style: TextStyle(color: Colors.red),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ViewRoomPage(
+                              roomId: roomId,
+                              className: className,
+                              subject: subject,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Stack(
+                          children: [
+                            // Main content (title & subtitle)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text(
+                                  "$className",
+                                  style: const TextStyle(
+                                      fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                                Text(
+                                  "$subject",
+                                  style: const TextStyle(
+                                      fontSize: 13 , fontWeight: FontWeight.w500, color: Colors.white),
+                                ),
+                                const SizedBox(height: 6),
+                                Text("$section",
+                                      style: const TextStyle(
+                                      fontSize: 12, color: Colors.white),
+                                ), 
+                              ],
+                            ),
+                            // Top-right menu button
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: GestureDetector(
+                                onTap: () {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: false,
+                                    isDismissible: true,
+                                    enableDrag: false,
+                                    backgroundColor: Colors.white,
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                                     ),
-                                  ),
-                                ],
+                                    builder: (context) {
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            // Archive option
+                                            GestureDetector(
+                                              onTap: () async {
+                                                Navigator.pop(context); // Close modal
+                                                // Archive logic here
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text('Room "$className" archived')),
+                                                );
+                                              },
+                                              child: const Row(
+                                                children: [
+                                                  Icon(Icons.archive_outlined, color: Colors.blue),
+                                                  SizedBox(width: 10),
+                                                  Text(
+                                                    "Archive Room",
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Colors.black,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+                  
+                                            // Delete option
+                                            GestureDetector(
+                                              onTap: () async {
+                                                Navigator.pop(context); // Close modal first
+                  
+                                                final confirm = await showDialog<bool>(
+                                                  context: context,
+                                                  builder: (context) => AlertDialog(
+                                                    backgroundColor: Colors.white,
+                                                    title: const Text('Delete Room', textAlign: TextAlign.center, style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.w800,
+                                                    ),),
+                                                    content: Text('Are you sure you want to delete "$className"?', textAlign: TextAlign.center, style: TextStyle(
+                                                      fontSize: 12,
+                                                    ),),
+                                                    actions: [
+                                                      Row(
+                                                        children: [
+                                                          Expanded(
+                                                            flex: 1,
+                                                            child: ElevatedButton(
+                                                              onPressed: () => Navigator.pop(context, false),
+                                                              style: ButtonStyle(
+                                                                backgroundColor: MaterialStateProperty.all(Color(0xFFA27221)),
+                                                                foregroundColor: MaterialStateProperty.all(Colors.white),
+                                                                shape: MaterialStateProperty.all(
+                                                                RoundedRectangleBorder(
+                                                                  borderRadius: BorderRadius.circular(14),
+                                                                ),),
+                                                              ),
+                                                              child: const Text('No'),
+                                                            ),
+                                                          ),
+                                                          SizedBox(width: 10,),
+                                                          Expanded(
+                                                            flex: 1,
+                                                            child: ElevatedButton(
+                                                              onPressed: () => Navigator.pop(context, true),
+                                                              style: ButtonStyle(
+                                                                backgroundColor: MaterialStateProperty.all(Color.fromARGB(255, 235, 200, 95)),
+                                                                foregroundColor: MaterialStateProperty.all(Colors.white),
+                                                                shape: MaterialStateProperty.all(
+                                                                RoundedRectangleBorder(
+                                                                  borderRadius: BorderRadius.circular(14),
+                                                                ),),
+                                                              ),
+                                                              child: const Text('Yes'),
+                                                          ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      
+                                                    ],
+                                                  ),
+                                                );
+                  
+                                                if (confirm ?? false) {
+                                                  try {
+                                                    // Get teacher name for notification
+                                                    final user = FirebaseAuth.instance.currentUser;
+                                                    String teacherName = user?.displayName ?? user?.email ?? 'Teacher';
+                                                    
+                                                    // Notify students before deleting the room
+                                                    await notifyStudentsOnRoomDelete(
+                                                      className: className,
+                                                      subject: subject,
+                                                      roomId: roomId,
+                                                      teacherName: teacherName,
+                                                    );
+                                                    
+                                                    // Clean up: Delete all members from the room's members subcollection
+                                                    final membersSnapshot = await FirebaseFirestore.instance
+                                                        .collection('rooms')
+                                                        .doc(roomId)
+                                                        .collection('members')
+                                                        .get();
+                                                    
+                                                    for (var memberDoc in membersSnapshot.docs) {
+                                                      await memberDoc.reference.delete();
+                                                    }
+                                                    
+                                                    // Delete the room
+                                                    await FirebaseFirestore.instance
+                                                        .collection('rooms')
+                                                        .doc(roomId)
+                                                        .delete();
+                                                    
+                                                    showMessage(context, 'Room "$className" deleted successfully');
+                                                  } catch (e) {
+                                                    showMessage(context, 'Failed to delete room');
+                                                    debugPrint('Delete room error: $e');
+                                                  }
+                                                }
+                                              },
+                                              child: const Row(
+                                                children: [
+                                                  Icon(Icons.delete_outline, color: Colors.red),
+                                                  SizedBox(width: 10),
+                                                  Text(
+                                                    "Delete Room",
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Colors.black,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                                child: const Icon(Icons.more_horiz, color: Colors.white),
                               ),
-                            );
-
-                            if (confirm ?? false) {
-                              try {
-                                debugPrint('🚀 Starting room deletion process for: $className ($roomId)');
-                                
-                                // 1️⃣ Send notifications to students BEFORE deleting room
-                                await notifyStudentsOnRoomDelete(
-                                  className: className,
-                                  subject: subject,
-                                  roomId: roomId,
-                                  teacherName: "Prof. ${FirebaseAuth.instance.currentUser?.displayName ?? FirebaseAuth.instance.currentUser?.email ?? 'Unknown Teacher'}",
-                                );
-
-                                // 2️⃣ Delete the room
-                                await FirebaseFirestore.instance
-                                    .collection('rooms')
-                                    .doc(roomId)
-                                    .delete();
-
-                                debugPrint('✅ Room deletion completed successfully');
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content: Text(
-                                          'Room "$className" deleted successfully')),
-                                );
-                              } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Failed to delete room')),
-                                );
-                                debugPrint('Delete room error: $e');
-                              }
-                            }
-                          }
-                        },
-                        itemBuilder: (context) => const [
-                          PopupMenuItem(
-                            value: 'edit',
-                            child: Text('Edit Room'),
-                          ),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Text('Delete Room'),
-                          ),
-                        ],
+                            ),
+                  
+                  
+                          ],
+                        ),
                       ),
                     ),
-                  );
+                  ),
+                                ),
+                );
                 },
               ),
 
@@ -195,12 +336,14 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
         final rooms = roomSnapshot.data?.docs ?? [];
 
         return Scaffold(
+          backgroundColor: Colors.white,
           drawer: UserDrawer(
             user: currentUser,
             rooms: rooms,
             onSignOut: signout,
           ),
           appBar: AppBar(
+            backgroundColor: Colors.white,
             leading: Builder(
               builder: (context) => IconButton(
                 icon: const Icon(Icons.menu), // ☰ three-line button
