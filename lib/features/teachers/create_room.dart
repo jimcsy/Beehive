@@ -1,3 +1,4 @@
+import 'package:beehive/features/utils/show_modal.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -29,29 +30,35 @@ class _CreateRoomState extends State<CreateRoom> {
             if (!roomCreated)
               GestureDetector(
                 onTap: () => _showCreateRoomDialog(context),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: const Text(
-                    "Create a room",
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
+                child: Row(
+                  children: [
+                    Icon(Icons.meeting_room, color: Colors.blue),
+                    const SizedBox(width: 10),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: const Text(
+                        "Create a room",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
 
-            // ✅ optional: show success text after creation
+            //can delete
             if (roomCreated)
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  "✅ Room created successfully!",
+                  "Room created successfully!",
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: Colors.green,
+                    color: Colors.black,
                   ),
                 ),
               ),
@@ -151,12 +158,7 @@ class _CreateRoomState extends State<CreateRoom> {
                           final user = FirebaseAuth.instance.currentUser;
 
                           if (user == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content:
-                                    Text('You must be logged in to create a room.'),
-                              ),
-                            );
+                            showMessage(context, "You must be logged in to create a room.");
                             return;
                           }
 
@@ -186,13 +188,6 @@ class _CreateRoomState extends State<CreateRoom> {
                           // ✅ Close dialog + hide button
                           Navigator.pop(context);
                           setState(() => roomCreated = true);
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content:
-                                  Text('Room "$className" created by $email!'),
-                            ),
-                          );
                         },
                         icon: const Icon(Icons.check),
                         label: const Text('Create'),

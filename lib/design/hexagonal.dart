@@ -43,7 +43,10 @@ class HexClipper extends CustomClipper<Path> {
 
     Path path = Path();
     for (int i = 0; i < 6; i++) {
-      final angle = (pi / 3 * i) - pi / 6;
+      // --- THIS IS THE MODIFIED LINE ---
+      final angle = (pi / 3 * i); // Removed the "- pi / 6"
+      // ---
+
       final x = w / 2 + side * cos(angle);
       final y = h / 2 + side * sin(angle);
       if (i == 0) {

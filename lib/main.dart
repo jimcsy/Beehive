@@ -1,11 +1,9 @@
-import 'package:beehive/start/landing_page.dart';
-import 'package:beehive/start/practice.dart';
+import 'package:beehive/debug/add_module_debug.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'start/wrapper.dart';
 import 'start/google_sign_in.dart';
-import 'start/loader.dart';
 
 
 void main() async {
@@ -26,7 +24,6 @@ class MyApp extends StatelessWidget {
         title: 'Beehive',
         theme: ThemeData(
           primarySwatch: Colors.amber,
-
           bottomNavigationBarTheme: BottomNavigationBarThemeData(
           selectedItemColor: const Color(0xFFA27221), // Your selected icon color
           unselectedItemColor: Colors.grey,           // Unselected icons

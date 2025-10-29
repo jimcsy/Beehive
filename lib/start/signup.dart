@@ -1,5 +1,3 @@
-import 'package:beehive/features/students/students_homepage.dart';
-import 'package:beehive/features/teachers/teachers_homepage.dart';
 import 'package:beehive/start/loader.dart';
 import 'package:beehive/start/login.dart';
 import 'package:flutter/material.dart';
