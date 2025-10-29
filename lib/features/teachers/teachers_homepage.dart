@@ -1,10 +1,10 @@
+import 'package:beehive/features/utils/profile_page.dart';
 import 'package:beehive/features/teachers/create_room.dart';
 import 'package:beehive/design/hexagonal.dart';
 import 'package:beehive/features/teachers/notify_students.dart';
 import 'package:beehive/features/teachers/rooms/view_room.dart';
 import 'package:beehive/features/teachers/t_modules_page.dart';
 import 'package:beehive/features/teachers/t_notifications_page.dart';
-import 'package:beehive/features/teachers/t_profile_page.dart';
 import 'package:beehive/features/utils/drawer.dart';
 import 'package:beehive/features/utils/show_modal.dart';
 import 'package:beehive/start/login.dart';
@@ -23,6 +23,12 @@ class TeacherHomePage extends StatefulWidget {
 
 class _TeacherHomePageState extends State<TeacherHomePage> {
   int _selectedIndex = 0;
+
+   void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   List<Widget> _pages(List<QueryDocumentSnapshot> rooms) => [
         // 🏠 HOME TAB
@@ -289,14 +295,8 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
         const NotificationsPage(),
 
         // 👤 PROFILE
-        const ProfilePage(),
+        ProfilePage(onGoToHome: () => _onItemTapped(0)),
       ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
 
   Future<void> signout() async {
     try {

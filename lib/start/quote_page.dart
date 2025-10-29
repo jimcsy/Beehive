@@ -41,7 +41,6 @@ class _BuzzIntoCodingState extends State<BuzzIntoCoding> {
                 ],
               ),
             ),
-
             // --- Bottom-aligned buttons
             Positioned(
               bottom: 30,
