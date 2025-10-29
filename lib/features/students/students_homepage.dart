@@ -174,10 +174,12 @@ class StudentHomePageState extends State<StudentHomePage> {
       builder: (context, userRoomsSnapshot) {
         if (userRoomsSnapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
+            backgroundColor: Colors.white,
               body: Center(child: CircularProgressIndicator()));
         }
         if (userRoomsSnapshot.hasError) {
           return const Scaffold(
+            backgroundColor: Colors.white,
               body: Center(child: Text('Error loading your rooms.')));
         }
 
@@ -242,6 +244,7 @@ class StudentHomePageState extends State<StudentHomePage> {
     List<QueryDocumentSnapshot> rooms, // <-- The correctly fetched list
   ) {
     return Scaffold(
+      backgroundColor: Colors.white,
       drawer: UserDrawer(
         user: currentUser,
         rooms: rooms, // <-- Pass the correct list here
