@@ -426,7 +426,7 @@ Future<void> signInWithGoogle() async {
                                   children: [
                                     TextSpan(text: "Don't have an account? "),
                                     TextSpan(
-                                      text: "Sign up here",
+                                      text: "Sign up",
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         decoration: TextDecoration.underline,

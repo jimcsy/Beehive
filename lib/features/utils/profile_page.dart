@@ -4,16 +4,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:beehive/features/utils/edit_profile.dart';
 
-class StudentProfilePage extends StatefulWidget {
+class ProfilePage extends StatefulWidget {
   final VoidCallback onGoToHome;
 
-  const StudentProfilePage({super.key, required this.onGoToHome});
+  const ProfilePage({super.key, required this.onGoToHome});
 
   @override
-  State<StudentProfilePage> createState() => _StudentProfilePageState();
+  State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _StudentProfilePageState extends State<StudentProfilePage> {
+class _ProfilePageState extends State<ProfilePage> {
   final User? currentUser = FirebaseAuth.instance.currentUser;
   late final Future<DocumentSnapshot> _userFuture;
 
