@@ -1,5 +1,3 @@
-import 'package:beehive/design/hexagonal.dart';
-import 'package:beehive/features/students/join_room.dart';
 import 'package:beehive/features/students/s_notification_page.dart';
 import 'package:beehive/features/students/s_profile_page.dart';
 import 'package:beehive/features/students/s_rooms_page.dart';
@@ -142,7 +140,7 @@ class StudentHomePageState extends State<StudentHomePage> {
         },
       ),
       const StudentNotificationPage(),
-      const StudentProfilePage(),
+      StudentProfilePage(onGoToHome: () => _onItemTapped(0)),
     ];
   }
 
