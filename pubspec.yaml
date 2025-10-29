@@ -41,6 +41,11 @@ dependencies:
   #Google Icon
   font_awesome_flutter: ^9.0.0
 
+  # Profile Editor
+  image_picker: ^1.2.0
+  firebase_storage: 13.0.2
+  intl: ^0.19.0
+  
   # State Management
   provider: ^6.1.5
 
@@ -48,6 +53,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_launcher_icons: ^0.13.1
+  flutter_lints: ^6.0.0
 
 flutter_icons:
   android: true
@@ -66,13 +72,14 @@ flutter_icons:
 
 # The following section is specific to Flutter packages.
 flutter:
+  uses-material-design: true
   assets:
     - assets/icons/
     - assets/icons/gifs/
+    - assets/icons/images/
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
-  uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
   # assets:

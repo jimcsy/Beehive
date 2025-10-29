@@ -1,0 +1,62 @@
+[33m0c0a0ae[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/fix_notification[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m, [m[1;32mdev[m[33m)[m HEAD@{0}: checkout: moving from feature/fix_notification to feature/fix_notification
+[33m0c0a0ae[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/fix_notification[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m, [m[1;32mdev[m[33m)[m HEAD@{1}: checkout: moving from feature/fix_notification to feature/fix_notification
+[33m0c0a0ae[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/fix_notification[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m, [m[1;32mdev[m[33m)[m HEAD@{2}: checkout: moving from feature/fix_notification to feature/fix_notification
+[33m0c0a0ae[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/fix_notification[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m, [m[1;32mdev[m[33m)[m HEAD@{3}: reset: moving to HEAD~1
+[33mce1dc48[m[33m ([m[1;31morigin/feature/fix_notification[m[33m)[m HEAD@{4}: checkout: moving from feature/fix_notification to feature/fix_notification
+[33mce1dc48[m[33m ([m[1;31morigin/feature/fix_notification[m[33m)[m HEAD@{5}: reset: moving to HEAD
+[33mce1dc48[m[33m ([m[1;31morigin/feature/fix_notification[m[33m)[m HEAD@{6}: commit: Updated files
+[33m0c0a0ae[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/fix_notification[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m, [m[1;32mdev[m[33m)[m HEAD@{7}: checkout: moving from dev to feature/fix_notification
+[33m0c0a0ae[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/fix_notification[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m, [m[1;32mdev[m[33m)[m HEAD@{8}: reset: moving to HEAD
+[33m0c0a0ae[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/fix_notification[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m, [m[1;32mdev[m[33m)[m HEAD@{9}: merge origin/main: Fast-forward
+[33m1f87c01[m[33m ([m[1;31morigin/dev[m[33m)[m HEAD@{10}: checkout: moving from main to dev
+[33m0c0a0ae[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/fix_notification[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m, [m[1;32mdev[m[33m)[m HEAD@{11}: pull: Fast-forward
+[33m9a8065f[m[33m ([m[1;31morigin/feature/login_system[m[33m, [m[1;32mfeature/login_system[m[33m)[m HEAD@{12}: checkout: moving from dev to main
+[33m1f87c01[m[33m ([m[1;31morigin/dev[m[33m)[m HEAD@{13}: checkout: moving from update-main-local to dev
+[33mdd74d26[m[33m ([m[1;31morigin/update-main-local[m[33m, [m[1;32mupdate-main-local[m[33m)[m HEAD@{14}: commit: Update main with local files
+[33m1f87c01[m[33m ([m[1;31morigin/dev[m[33m)[m HEAD@{15}: checkout: moving from dev to update-main-local
+[33m1f87c01[m[33m ([m[1;31morigin/dev[m[33m)[m HEAD@{16}: checkout: moving from dev to dev
+[33m1f87c01[m[33m ([m[1;31morigin/dev[m[33m)[m HEAD@{17}: reset: moving to 1f87c01
+[33m1f87c01[m[33m ([m[1;31morigin/dev[m[33m)[m HEAD@{18}: reset: moving to 1f87c01
+[33m1f87c01[m[33m ([m[1;31morigin/dev[m[33m)[m HEAD@{19}: reset: moving to HEAD
+[33m1f87c01[m[33m ([m[1;31morigin/dev[m[33m)[m HEAD@{20}: checkout: moving from feature/teacher_drawer to dev
+[33mdd64770[m[33m ([m[1;31morigin/feature/teacher_drawer[m[33m, [m[1;32mfeature/teacher_drawer[m[33m)[m HEAD@{21}: checkout: moving from dev to feature/teacher_drawer
+[33m1f87c01[m[33m ([m[1;31morigin/dev[m[33m)[m HEAD@{22}: commit: WIP: local changes before merge
+[33m829ff2e[m HEAD@{23}: checkout: moving from dev to dev
+[33m829ff2e[m HEAD@{24}: commit: Updated file
+[33m840369e[m[33m ([m[1;31morigin/feature/User_Authentication[m[33m, [m[1;32mfeature/User_Authentication[m[33m)[m HEAD@{25}: checkout: moving from dev to dev
+[33m840369e[m[33m ([m[1;31morigin/feature/User_Authentication[m[33m, [m[1;32mfeature/User_Authentication[m[33m)[m HEAD@{26}: merge feature/User_Authentication: Fast-forward
+[33m7469954[m[33m ([m[1;31morigin/feature/working_oauth[m[33m)[m HEAD@{27}: pull origin dev: Fast-forward
+[33m9dc64d7[m HEAD@{28}: checkout: moving from feature/User_Authentication to dev
+[33m840369e[m[33m ([m[1;31morigin/feature/User_Authentication[m[33m, [m[1;32mfeature/User_Authentication[m[33m)[m HEAD@{29}: commit: Updated
+[33mb9c3d87[m HEAD@{30}: checkout: moving from feature/User_Authentication to feature/User_Authentication
+[33mb9c3d87[m HEAD@{31}: commit: Updated user authentication
+[33m8ec6c57[m[33m ([m[1;32mfeature/working_oauth[m[33m)[m HEAD@{32}: reset: moving to HEAD
+[33m8ec6c57[m[33m ([m[1;32mfeature/working_oauth[m[33m)[m HEAD@{33}: checkout: moving from feature/working_oauth to feature/User_Authentication
+[33m8ec6c57[m[33m ([m[1;32mfeature/working_oauth[m[33m)[m HEAD@{34}: pull origin main: Fast-forward
+[33m7469954[m[33m ([m[1;31morigin/feature/working_oauth[m[33m)[m HEAD@{35}: checkout: moving from feature/login_system to feature/working_oauth
+[33m9a8065f[m[33m ([m[1;31morigin/feature/login_system[m[33m, [m[1;32mfeature/login_system[m[33m)[m HEAD@{36}: checkout: moving from main to feature/login_system
+[33m9a8065f[m[33m ([m[1;31morigin/feature/login_system[m[33m, [m[1;32mfeature/login_system[m[33m)[m HEAD@{37}: checkout: moving from feature/working_oauth to main
+[33m7469954[m[33m ([m[1;31morigin/feature/working_oauth[m[33m)[m HEAD@{38}: reset: moving to HEAD
+[33m7469954[m[33m ([m[1;31morigin/feature/working_oauth[m[33m)[m HEAD@{39}: checkout: moving from dev to feature/working_oauth
+[33m9dc64d7[m HEAD@{40}: reset: moving to HEAD
+[33m9dc64d7[m HEAD@{41}: checkout: moving from feature/working_oauth to dev
+[33m7469954[m[33m ([m[1;31morigin/feature/working_oauth[m[33m)[m HEAD@{42}: commit: Working oauth
+[33m9a8065f[m[33m ([m[1;31morigin/feature/login_system[m[33m, [m[1;32mfeature/login_system[m[33m)[m HEAD@{43}: checkout: moving from main to feature/working_oauth
+[33m9a8065f[m[33m ([m[1;31morigin/feature/login_system[m[33m, [m[1;32mfeature/login_system[m[33m)[m HEAD@{44}: checkout: moving from feature/not_working_oauth to main
+[33m4c4733e[m[33m ([m[1;31morigin/feature/not_working_oauth[m[33m, [m[1;32mfeature/not_working_oauth[m[33m)[m HEAD@{45}: commit: Not working
+[33m9a8065f[m[33m ([m[1;31morigin/feature/login_system[m[33m, [m[1;32mfeature/login_system[m[33m)[m HEAD@{46}: checkout: moving from main to feature/not_working_oauth
+[33m9a8065f[m[33m ([m[1;31morigin/feature/login_system[m[33m, [m[1;32mfeature/login_system[m[33m)[m HEAD@{47}: pull origin main: Fast-forward
+[33m9dc64d7[m HEAD@{48}: reset: moving to HEAD
+[33m9dc64d7[m HEAD@{49}: checkout: moving from dev to main
+[33m9dc64d7[m HEAD@{50}: checkout: moving from feature/full-update to dev
+[33mce56a7d[m[33m ([m[1;32mfeature/readme[m[33m, [m[1;32mfeature/full-update[m[33m)[m HEAD@{51}: checkout: moving from feature/readme to feature/full-update
+[33mce56a7d[m[33m ([m[1;32mfeature/readme[m[33m, [m[1;32mfeature/full-update[m[33m)[m HEAD@{52}: commit: Updated entire prohect files
+[33m3caa25f[m HEAD@{53}: pull origin dev: Fast-forward
+[33m6d6db93[m[33m ([m[1;31morigin/feature/readme[m[33m)[m HEAD@{54}: commit: Test Commit - Genesis
+[33m9dc64d7[m HEAD@{55}: checkout: moving from dev to feature/readme
+[33m9dc64d7[m HEAD@{56}: checkout: moving from dev to dev
+[33m9dc64d7[m HEAD@{57}: checkout: moving from main to dev
+[33m9dc64d7[m HEAD@{58}: checkout: moving from main to main
+[33m9dc64d7[m HEAD@{59}: commit: Login system v1
+[33m847d431[m HEAD@{60}: Branch: renamed refs/heads/master to refs/heads/main
+[33m847d431[m HEAD@{62}: commit (initial): Hello, Beehive

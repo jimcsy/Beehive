@@ -1,4 +1,5 @@
 import 'package:beehive/features/students/students_homepage.dart';
+import 'package:beehive/start/forgot_password.dart';
 import 'package:beehive/start/loader.dart';
 import 'package:beehive/start/quote_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../features/teachers/teachers_homepage.dart';
+import 'forgot_password.dart'; 
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -333,12 +335,10 @@ Future<void> signInWithGoogle() async {
                             const SizedBox(height: 10),
                             GestureDetector(
                               onTap: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const BuzzIntoCoding(),
-                                  ),
-                                );
+                                // 1. Use Navigator.push() instead of pushReplacement
+                                //    This adds the new screen on top, so the user can go back.
+                               
+                                  showForgotPasswordModal(context);
                               },
                               child: Text(
                                 "Forgot Password?",
@@ -426,7 +426,7 @@ Future<void> signInWithGoogle() async {
                                   children: [
                                     TextSpan(text: "Don't have an account? "),
                                     TextSpan(
-                                      text: "Sign up here",
+                                      text: "Sign up",
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         decoration: TextDecoration.underline,

@@ -1,14 +1,13 @@
-import 'package:beehive/start/loader.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import '../features/teachers/teachers_homepage.dart';
 import '../features/students/students_homepage.dart';
+import 'login.dart'; // <-- 1. ADDED THIS IMPORT
 
 class EmailVerificationPage extends StatefulWidget {
   final User user;
-
   const EmailVerificationPage({super.key, required this.user});
 
   @override
@@ -28,10 +27,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     isEmailVerified = widget.user.emailVerified;
-
-    if (!isEmailVerified) {
-      _startPeriodicCheck();
-    }
+    if (!isEmailVerified) _startPeriodicCheck();
   }
 
   @override
@@ -50,36 +46,32 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
   }
 
   void _startPeriodicCheck() {
-    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (!isEmailVerified) {
-        checkEmailVerified();
-      }
+    _timer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!isEmailVerified) checkEmailVerified();
     });
   }
 
   Future<void> checkEmailVerified() async {
     try {
+      // reload the passed-in user then read the current user from FirebaseAuth
       await widget.user.reload();
-      final user = FirebaseAuth.instance.currentUser;
-
-      if (user != null && user.emailVerified) {
+      final current = FirebaseAuth.instance.currentUser;
+      if (current != null && current.emailVerified) {
+        if (!mounted) return;
         setState(() => isEmailVerified = true);
         _timer?.cancel();
+        _cooldownTimer?.cancel();
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Email verified successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Email verified successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
 
-          await Future.delayed(const Duration(milliseconds: 1200));
-
-          if (mounted) {
-            _navigateBasedOnRole(user.uid);
-          }
-        }
+        await Future.delayed(const Duration(milliseconds: 1200));
+        if (!mounted) return;
+        _navigateBasedOnRole(current.uid);
       }
     } catch (e) {
       debugPrint('Error checking email verification: $e');
@@ -91,74 +83,88 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
       final doc =
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
-      if (doc.exists) {
-        final role = doc.data()?['role'];
-
-        if (role == 'teacher') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const TeacherHomePage()),
-          );
-        } else if (role == 'student') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const StudentHomePage()),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Role not found. Please contact admin.'),
-                backgroundColor: Colors.red),
-          );
-        }
-      } else {
+      if (!doc.exists) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('User record not found.'),
+              content: Text('User record not found.'), backgroundColor: Colors.red),
+        );
+        return;
+      }
+
+      final role = doc.data()?['role'];
+      if (role == 'teacher') {
+        if (!mounted) return;
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (_) => const TeacherHomePage()));
+      } else if (role == 'student') {
+        if (!mounted) return;
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (_) => const StudentHomePage()));
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Role not found. Please contact admin.'),
               backgroundColor: Colors.red),
         );
       }
     } catch (e) {
       debugPrint('Error fetching role: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching user role: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching user role: $e')),
+        );
+      }
     }
   }
 
   Future<void> resendVerificationEmail() async {
     if (!canResendEmail) return;
-
     try {
-      await widget.user.sendEmailVerification();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification email sent! Please check your inbox.'),
-            backgroundColor: Colors.blue,
-          ),
-        );
-
-        setState(() {
-          canResendEmail = false;
-          resendCooldown = 60;
-        });
-
-        _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-          setState(() => resendCooldown--);
-          if (resendCooldown <= 0) {
-            setState(() => canResendEmail = true);
-            timer.cancel();
-          }
-        });
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('No signed-in user. Please sign in again.'),
+                backgroundColor: Colors.red),
+          );
+        }
+        return;
       }
+
+      await currentUser.sendEmailVerification();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Verification email sent! Please check your inbox.'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+
+      setState(() {
+        canResendEmail = false;
+        resendCooldown = 60;
+      });
+
+      _cooldownTimer?.cancel();
+      _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        setState(() => resendCooldown--);
+        if (resendCooldown <= 0) {
+          setState(() => canResendEmail = true);
+          timer.cancel();
+        }
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Error sending verification: $e'),
-              backgroundColor: Colors.red),
+          SnackBar(content: Text('Error sending verification: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -178,89 +184,155 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
 
   @override
   Widget build(BuildContext context) {
+    const Color gold = Color(0xFFD09A10);
+    const Color goldDark = Color(0xFFB57A00);
+
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('Verify Your Email'),
-      ),
-      body: SafeArea(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.email_outlined, size: 100, color: Colors.blue),
-                const SizedBox(height: 30),
-                const Text(
-                  'Check Your Email',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 15),
-                Container(
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    widget.user.email ?? 'your email',
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w500),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  "We've sent a verification link to your email address. Please click the link to verify your account.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-                const SizedBox(height: 30),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        // --- THIS IS THE FIX ---
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () async {
+            // 1. Stop all background activity
+            _timer?.cancel();
+            _cooldownTimer?.cancel();
 
-                if (!isEmailVerified)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 20),
-                    child: DotLoadingAnimation(),
-                  ),
+            // 2. Sign the user out to cancel verification
+            await _signOut();
 
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: checkEmailVerified,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                    ),
-                    child: const Text('Check Verification Status'),
-                  ),
-                ),
-                const SizedBox(height: 15),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: canResendEmail ? resendVerificationEmail : null,
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                    ),
-                    child: Text(canResendEmail
-                        ? 'Resend Verification Email'
-                        : 'Resend in ${resendCooldown}s'),
-                  ),
-                ),
-                const SizedBox(height: 30),
-                const Text(
-                  "Didn't receive the email? Check your spam folder or try resending.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
+            // 3. Go back to the Login page
+            if (mounted) {
+              // --- 2. CHANGED THIS ---
+              // Replace this page with the Login page instead of pop()
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => const Login()),
+              );
+              // --- END OF CHANGE ---
+            }
+          },
         ),
       ),
-    ),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                // ensure column fills viewport so Spacer() works
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 28.0, vertical: 8.0),
+                    child: Column(
+                      children: [
+                        // top content
+                        Center(
+                          child: Container(
+                            width: 300,
+                            height: 300,
+                            alignment: Alignment.center,
+                            child: Image.asset(
+                              'assets/icons/images/email.png',
+                              width: 220,
+                              height: 220,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                        const Text(
+                          'We have sent you an email',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          // Use RichText for mixed styles in one line
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            strutStyle: StrutStyle(
+                            height: 1.8, // 1.0 is the default. 1.4 means 140% line height.
+                            forceStrutHeight: true,
+                          ),
+                            text: TextSpan(
+                              // This is the default style for the whole sentence
+                              style: const TextStyle(fontSize: 18, color: Colors.black),
+                              children: [
+                                const TextSpan(
+                                  text: "We’ve sent a link to ",
+                                ),
+                                // This is the span for the email
+                                TextSpan(
+                                  text: widget.user.email ?? 'your email',
+                                  style: const TextStyle(
+                                    fontSize: 18, // Kept size 15 for consistency
+                                    fontWeight: FontWeight.w600, // Make it bold to stand out
+                                    color: Colors.black87, // Give it a stronger color
+                                  ),
+                                ),
+                                const TextSpan(
+                                  text: " — just click it to verify your account!",
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        const Spacer(),
+                        if (!isEmailVerified) const DotLoadingAnimation(),
+                        const SizedBox(height: 22),
 
+                        // bottom controls (kept full width)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed:
+                                    canResendEmail ? resendVerificationEmail : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Color(0xFFA27221),
+                                  foregroundColor: Colors.white,  // Text color
+                                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  //elevation: 4, // Drop shadow
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(50), // Match TextField radius
+                                  ),
+                                  textStyle: TextStyle(
+                                    fontSize: 12, // Match TextField font size
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                child: Text(
+                                  canResendEmail
+                                      ? 'Resend Verification'
+                                      : 'Resend in ${resendCooldown}s',
+                                  style: const TextStyle(
+                                      color: Colors.white,),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              "Didn't receive the email? Check your spam folder or try resending.",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -299,7 +371,7 @@ class _DotLoadingAnimationState extends State<DotLoadingAnimation>
               duration: const Duration(milliseconds: 300),
               child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4),
-                child: CircleAvatar(radius: 5, backgroundColor: Colors.blue),
+                child: CircleAvatar(radius: 5, backgroundColor: Colors.amber),
               ),
             );
           }),
@@ -308,3 +380,4 @@ class _DotLoadingAnimationState extends State<DotLoadingAnimation>
     );
   }
 }
+
