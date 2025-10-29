@@ -21,6 +21,7 @@ class _StudentNotificationPageState extends State<StudentNotificationPage> {
     }
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
@@ -92,6 +93,7 @@ class _StudentNotificationPageState extends State<StudentNotificationPage> {
               await Future.delayed(const Duration(milliseconds: 500));
             },
             child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 10),
               physics: const AlwaysScrollableScrollPhysics(),
               itemCount: notifications.length,
               itemBuilder: (context, index) {
@@ -146,52 +148,81 @@ class _StudentNotificationPageState extends State<StudentNotificationPage> {
                     iconColor = Colors.blue;
                 }
 
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  elevation: isRead ? 1 : 3,
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: iconColor.withOpacity(0.1),
-                      child: Icon(notificationIcon, color: iconColor),
-                    ),
-                    title: Text(
-                      title,
-                      style: TextStyle(
-                        fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                return InkWell(
+                  onTap: () async {
+                    try {
+                      await notifications[index].reference.update({'read': true});
+                      debugPrint('✅ Notification marked as read: ${notifications[index].id}');
+                    } catch (e) {
+                      debugPrint('❌ Failed to mark notification as read: $e');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Failed to mark notification as read'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border(
+                        left: BorderSide(
+                          color: isRead ? Colors.grey : Colors.amber,
+                          width: 6,
+                        ),
                       ),
                     ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(message),
-                        const SizedBox(height: 4),
-                        Text(
-                          timeAgo,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: iconColor.withOpacity(0.1),
+                          child: Icon(notificationIcon, color: iconColor, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: TextStyle(
+                                  fontWeight:
+                                      isRead ? FontWeight.normal : FontWeight.bold,
+                                  fontSize: 15,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                message,
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        Align(
+                          alignment: Alignment.center,
+                          child: Text(
+                            timeAgo,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ],
                     ),
-                    trailing: isRead
-                        ? null
-                        : const Icon(Icons.circle, color: Colors.blue, size: 10),
-                    onTap: () async {
-                      // Mark as read
-                      try {
-                        await notifications[index].reference.update({'read': true});
-                        debugPrint('✅ Notification marked as read: ${notifications[index].id}');
-                      } catch (e) {
-                        debugPrint('❌ Failed to mark notification as read: $e');
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Failed to mark notification as read'),
-                            backgroundColor: Colors.orange,
-                          ),
-                        );
-                      }
-                    },
                   ),
                 );
               },
