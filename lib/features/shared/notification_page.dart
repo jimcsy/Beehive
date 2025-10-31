@@ -2,14 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class StudentNotificationPage extends StatefulWidget {
-  const StudentNotificationPage({super.key});
+class NotificationPage extends StatefulWidget {
+  const NotificationPage({super.key});
 
   @override
-  State<StudentNotificationPage> createState() => _StudentNotificationPageState();
+  State<NotificationPage> createState() => _NotificationPageState();
 }
 
-class _StudentNotificationPageState extends State<StudentNotificationPage> {
+class _NotificationPageState extends State<NotificationPage> {
   final user = FirebaseAuth.instance.currentUser;
 
   @override

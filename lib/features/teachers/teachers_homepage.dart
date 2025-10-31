@@ -1,10 +1,10 @@
+import 'package:beehive/features/shared/notification_page.dart';
 import 'package:beehive/features/shared/profile_page.dart';
 import 'package:beehive/features/teachers/create_room.dart';
 import 'package:beehive/design/hexagonal.dart';
 import 'package:beehive/features/teachers/notify_students.dart';
 import 'package:beehive/features/teachers/rooms/view_room.dart';
-import 'package:beehive/features/teachers/t_modules_page.dart';
-import 'package:beehive/features/teachers/t_notifications_page.dart';
+import 'package:beehive/features/teachers/module_page.dart';
 import 'package:beehive/features/shared/drawer.dart';
 import 'package:beehive/features/shared/show_modal.dart';
 import 'package:beehive/core/login.dart';
@@ -292,7 +292,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
         const ModulesPage(),
 
         // 🔔 NOTIFICATIONS
-        const NotificationsPage(),
+        const NotificationPage(),
 
         // 👤 PROFILE
         ProfilePage(onGoToHome: () => _onItemTapped(0)),
@@ -346,6 +346,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
             ? null // Don't show an AppBar for the Profile tab
             : AppBar( // Show the AppBar for all other tabs
                 backgroundColor: Colors.white,
+                centerTitle: false,
                 leading: Builder(
                   builder: (context) => IconButton(
                     icon: const Icon(Icons.menu), // ☰ three-line button
@@ -379,6 +380,8 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
             currentIndex: _selectedIndex,
             onTap: _onItemTapped,
             showUnselectedLabels: true,
+
+            
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
               BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Modules'),

@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Import your page files
-import '../teachers/t_modules_page.dart';
+import '../teachers/module_page.dart';
 import 'settings_page.dart';
 import 'about_page.dart';
 

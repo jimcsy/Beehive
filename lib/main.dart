@@ -23,6 +23,7 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         title: 'Beehive',
         theme: ThemeData(
+          scaffoldBackgroundColor: Colors.white, 
           primarySwatch: Colors.amber,
           bottomNavigationBarTheme: BottomNavigationBarThemeData(
           selectedItemColor: const Color(0xFFA27221), // Your selected icon color

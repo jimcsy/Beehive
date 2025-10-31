@@ -1,6 +1,6 @@
-import 'package:beehive/features/students/s_notification_page.dart';
+import 'package:beehive/features/shared/notification_page.dart';
 import 'package:beehive/features/shared/profile_page.dart';
-import 'package:beehive/features/students/s_rooms_page.dart';
+import 'package:beehive/features/students/rooms_page.dart';
 import 'package:beehive/features/shared/drawer.dart'; // Make sure this path is correct
 import 'package:beehive/features/students/modules/view_lesson.dart';
 import 'package:beehive/core/loader.dart';
@@ -139,7 +139,7 @@ class StudentHomePageState extends State<StudentHomePage> {
           });
         },
       ),
-      const StudentNotificationPage(),
+      const NotificationPage(),
       ProfilePage(onGoToHome: () => _onItemTapped(0)),
     ]; 
   }
@@ -253,6 +253,7 @@ class StudentHomePageState extends State<StudentHomePage> {
           ? null // Don't show an AppBar for the Profile tab
           : AppBar( // Show the AppBar for all other tabs
               backgroundColor: Colors.white,
+              centerTitle: false,
               title: Text(['Home', 'Rooms', 'Notifications', 'Profile'][_selectedIndex]),
               leading: Builder(
                 builder: (context) => IconButton(
