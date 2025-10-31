@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../utils/show_modal.dart';
+import '../shared/show_modal.dart';
 
 class InsertModule extends StatefulWidget {
   final String roomCode;

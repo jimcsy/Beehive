@@ -1,5 +1,5 @@
 import 'package:beehive/features/students/students_homepage.dart';
-import 'package:beehive/start/loader.dart';
+import 'package:beehive/core/loader.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';

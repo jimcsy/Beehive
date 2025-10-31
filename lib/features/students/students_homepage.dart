@@ -1,15 +1,15 @@
 import 'package:beehive/features/students/s_notification_page.dart';
-import 'package:beehive/features/utils/profile_page.dart';
+import 'package:beehive/features/shared/profile_page.dart';
 import 'package:beehive/features/students/s_rooms_page.dart';
-import 'package:beehive/features/utils/drawer.dart'; // Make sure this path is correct
+import 'package:beehive/features/shared/drawer.dart'; // Make sure this path is correct
 import 'package:beehive/features/students/modules/view_lesson.dart';
-import 'package:beehive/start/loader.dart';
-import 'package:beehive/start/login.dart';
+import 'package:beehive/core/loader.dart';
+import 'package:beehive/core/login.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import '../../start/google_sign_in.dart';
+import '../../core/google_sign_in.dart';
 
 class StudentHomePage extends StatefulWidget {
   const StudentHomePage({super.key});
@@ -141,7 +141,7 @@ class StudentHomePageState extends State<StudentHomePage> {
       ),
       const StudentNotificationPage(),
       ProfilePage(onGoToHome: () => _onItemTapped(0)),
-    ];
+    ]; 
   }
 
   //
@@ -248,18 +248,21 @@ class StudentHomePageState extends State<StudentHomePage> {
         rooms: rooms, // <-- Pass the correct list here
         onSignOut: signout,
       ),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        title:
-            Text(['Home', 'Rooms', 'Notifications', 'Profile'][_selectedIndex]),
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu), // ☰ three-line button
-            onPressed: () => Scaffold.of(context).openDrawer(),
-            tooltip: 'Open Menu',
-          ),
-        ),
-      ),
+      // --- START OF FIX ---
+      appBar: _selectedIndex == 3 // 3 is the index for Profile
+          ? null // Don't show an AppBar for the Profile tab
+          : AppBar( // Show the AppBar for all other tabs
+              backgroundColor: Colors.white,
+              title: Text(['Home', 'Rooms', 'Notifications', 'Profile'][_selectedIndex]),
+              leading: Builder(
+                builder: (context) => IconButton(
+                  icon: const Icon(Icons.menu), // ☰ three-line button
+                  onPressed: () => Scaffold.of(context).openDrawer(),
+                  tooltip: 'Open Menu',
+                ),
+              ),
+            ),
+      // --- END OF FIX ---
       body: pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
@@ -277,8 +280,5 @@ class StudentHomePageState extends State<StudentHomePage> {
         ],
       ),
     );
-  }
-  //
-  // --- END OF UPDATED CODE ---
-  //
+  } 
 }

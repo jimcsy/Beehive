@@ -1,7 +1,7 @@
 import 'package:beehive/features/students/students_homepage.dart';
-import 'package:beehive/start/forgot_password.dart';
-import 'package:beehive/start/loader.dart';
-import 'package:beehive/start/quote_page.dart';
+import 'package:beehive/core/forgot_password.dart';
+import 'package:beehive/core/loader.dart';
+import 'package:beehive/core/quote_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -216,6 +216,8 @@ Future<void> signInWithGoogle() async {
               Expanded(
                 flex: 5,
                 child: Container(
+                  width: MediaQuery.of(context).size.width,
+                  height: MediaQuery.of(context).size.height,
                   decoration: const BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.only(

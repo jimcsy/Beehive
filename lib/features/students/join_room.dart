@@ -70,7 +70,6 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: Colors.white,
-      // 1. Title from "Join Room", style from "Delete Room"
       title: const Text(
         'Join Room',
         textAlign: TextAlign.center,
@@ -124,7 +123,7 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
                     ),
                   ),
                 ),
-                child: const Text('Cancel'),
+                child: const Text('No'),
               ),
             ),
             const SizedBox(

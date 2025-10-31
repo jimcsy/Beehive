@@ -1,8 +1,9 @@
+import 'package:beehive/design/hexagonal.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
-import 'package:beehive/features/utils/edit_profile.dart';
+import 'package:beehive/features/shared/edit_profile.dart';
 
 class ProfilePage extends StatefulWidget {
   final VoidCallback onGoToHome;
@@ -35,29 +36,61 @@ class _ProfilePageState extends State<ProfilePage> {
     final doc = await userRef.get();
 
     if (!doc.exists) {
+      // 1. NEW USER:
+      // Document doesn't exist, create it.
+      // We'll save the Gmail PFP (currentUser!.photoURL) right away.
       try {
         await userRef.set({
           'displayName': currentUser!.displayName,
           'email': currentUser!.email,
-          'photoURL': currentUser!.photoURL,
-          'role': 'student',
+          'photoURL': currentUser!.photoURL, // <-- Saves the Gmail PFP
+          'role': 'student', // Default role
           'createdAt': FieldValue.serverTimestamp(),
+          //'firstName': '', // You can pre-fill these if you want
+          //'lastName': '',
         });
+        // Return the new document we just created
         return await userRef.get();
       } catch (e) {
         throw Exception('Failed to create user profile: $e');
       }
     } else {
+      // 2. EXISTING USER:
+      // Document EXISTS. We need to check if it's missing data.
+      final userData = doc.data() as Map<String, dynamic>? ?? {};
+      Map<String, dynamic> dataToUpdate = {};
+
+      // CHECK: Is the photoURL null in our database?
+      if (userData['photoURL'] == null && currentUser!.photoURL != null) {
+        // YES. The user has a Gmail PFP, but it's not in our database.
+        // Let's update it.
+        dataToUpdate['photoURL'] = currentUser!.photoURL;
+      }
+
+      // You can add more checks here if you want
+      // if (userData['displayName'] == null && currentUser!.displayName != null) {
+      //   dataToUpdate['displayName'] = currentUser!.displayName;
+      // }
+
+      // If we found any missing data, update the document
+      if (dataToUpdate.isNotEmpty) {
+        await userRef.update(dataToUpdate);
+        // Re-fetch the document to get the newly merged data
+        return await userRef.get();
+      }
+
+      // No updates were needed, just return the document as-is
       return doc;
     }
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     // Set status bar icons to light (white) for the dark header
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: FutureBuilder<DocumentSnapshot>(
         future: _userFuture,
         builder: (context, snapshot) {
@@ -80,42 +113,66 @@ class _ProfilePageState extends State<ProfilePage> {
           final email = userData?['email'] ?? 'student.email@example.com';
           final photoURL = userData?['photoURL'];
 
-          // 1. The main widget is a Stack to layer all elements
+          // The main widget is a Stack to layer all elements
           return Stack(
             children: [
-              // 2. The scrolling content (bottom layer)
-              SingleChildScrollView(
-                // Add padding so the content starts below the profile pic
-                padding: const EdgeInsets.only(top: 290), 
-                child: Column(
-                  children: [
-                    Text(
-                      displayName,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
+              // --- START OF NEW LAYOUT ---
+              // This Column now replaces the SingleChildScrollView
+              // It holds BOTH the static info and the scrollable list
+              Column(
+                children: [
+                  // 1. STATIC (NON-SCROLLING) PART
+                  // We use Padding to push this content down below the PFP
+                  Padding(
+                    padding: const EdgeInsets.only(top: 290),
+                    child: Column(
+                      children: [
+                        Text(
+                          displayName,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          email,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 24), // Space before scrollable list
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      email,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    _buildSectionHeader('Badges'),
-                    _buildPlaceholderBox(height: 120),
-                    const SizedBox(height: 24),
-                    _buildSectionHeader('Achievements'),
-                    _buildPlaceholderBox(height: 180),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
+                  ),
 
-              // 3. The header background using your rectangle.png (middle layer)
+                  // 2. SCROLLABLE (DYNAMIC) PART
+                  // Expanded tells this section to take all *remaining* space
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          // This makes the section headers align left
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildSectionHeader('Badges'),
+                            _buildPlaceholderBox(height: 120),
+                            const SizedBox(height: 24),
+                            _buildSectionHeader('Achievements'),
+                            _buildPlaceholderBox(height: 180),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              // --- END OF NEW LAYOUT ---
+
+              // 3. The header background (NO CHANGE)
               Positioned(
                 top: 0,
                 left: 0,
@@ -127,7 +184,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
 
-              // 4. The BeeHive logo and text (top layer)
+              // 4. The BeeHive logo and text (NO CHANGE)
               Positioned(
                 top: 0,
                 left: 0,
@@ -152,16 +209,16 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
               ),
-              
-              // 5. The Profile Picture (top layer)
+
+              // 5. The Profile Picture (NO CHANGE)
               Positioned(
                 top: 150, // Position it to overlap the header and body
                 // Center horizontally
-                left: MediaQuery.of(context).size.width / 2 - 65, 
+                left: MediaQuery.of(context).size.width / 2 - 65,
                 child: ClipPath(
-                  clipper: _HexagonalClipper(),
+                  clipper: HexClipper(),
                   child: Container(
-                    width: 130,
+                    width: 140,
                     height: 130,
                     decoration: BoxDecoration(
                       color: Colors.grey.shade300,
@@ -175,8 +232,11 @@ class _ProfilePageState extends State<ProfilePage> {
                     child: photoURL == null
                         ? Center(
                             child: Text(
-                              firstName.isNotEmpty ? firstName[0].toUpperCase() : 'S',
-                              style: const TextStyle(fontSize: 60, color: Colors.black54),
+                              firstName.isNotEmpty
+                                  ? firstName[0].toUpperCase()
+                                  : 'S',
+                              style: const TextStyle(
+                                  fontSize: 60, color: Colors.black54),
                             ),
                           )
                         : null,
@@ -184,13 +244,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
 
-              // 6. The Back and Edit buttons (top-most layer)
+              // 6. The Back and Edit buttons (NO CHANGE)
               Positioned(
                 top: 0,
                 left: 0,
                 child: SafeArea(
                   child: IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                    icon: const Icon(Icons.arrow_back_ios_new,
+                        color: Colors.white),
                     onPressed: widget.onGoToHome,
                   ),
                 ),
@@ -200,38 +261,19 @@ class _ProfilePageState extends State<ProfilePage> {
                 right: 0,
                 child: SafeArea(
                   child: IconButton(
-                    icon: const Icon(Icons.edit_outlined, color: Colors.white),
+                    icon:
+                        const Icon(Icons.edit_outlined, color: Colors.white),
                     onPressed: () async {
-                      // --- Academic Explanation ---
-                      // 1. We 'await' the result from Navigator.push. This pauses
-                      //    this function until the 'EditProfilePage' is 'popped' (closed).
                       final bool? profileWasUpdated = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => EditProfilePage(
-                            // 2. We pass the 'userData' map we already fetched
-                            //    into the constructor of our new edit page.
-                            //    This is how the edit page knows the current name/photoURL.
                             userData: userData ?? {},
                           ),
                         ),
                       );
 
-                      // 3. In edit_profile.dart, we wrote 'Navigator.pop(true)'
-                      //    on a successful save. We check for that 'true' value here.
-                      //    This is a common "callback" pattern for navigation.
-                      //
-                      // 4. The 'if (mounted)' check is a best practice. It ensures
-                      //    this widget is still part of the tree before calling setState
-                      //    (prevents errors if the user, for example, logged out
-                      //    while the edit page was open).
                       if (profileWasUpdated == true && mounted) {
-                        // 5. This is the most important part for a "smooth" experience:
-                        //    We call setState and re-assign our '_userFuture'.
-                        //    This tells the FutureBuilder to re-run its 'future'
-                        //    (the _getOrCreateUserProfile() function), which
-                        //    fetches the new, updated data from Firestore and
-                        //    refreshes the UI.
                         setState(() {
                           _userFuture = _getOrCreateUserProfile();
                         });
@@ -255,7 +297,7 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Text(
         title,
         style: const TextStyle(
-          fontSize: 18,
+          fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -274,32 +316,11 @@ class _ProfilePageState extends State<ProfilePage> {
       child: const Center(
         child: Text(
           'Coming Soon',
-          style: TextStyle(color: Colors.grey, fontSize: 16),
+          style: TextStyle(color: Colors.grey, fontSize: 10),
         ),
       ),
     );
   }
 }
 
-// --- Clipper Class (Only the Hexagonal one is needed now) ---
-
-class _HexagonalClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    final w = size.width;
-    final h = size.height;
-
-    path.moveTo(w * 0.5, 0);
-    path.lineTo(w, h * 0.25);
-    path.lineTo(w, h * 0.75);
-    path.lineTo(w * 0.5, h);
-    path.lineTo(0, h * 0.75);
-    path.lineTo(0, h * 0.25);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
-}
+// --- Clipper Class (Only the Hexagonal one is needed now) --

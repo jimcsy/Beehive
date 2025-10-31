@@ -67,17 +67,9 @@ class _StudentNotificationPageState extends State<StudentNotificationPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.notifications_none, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
                   Text(
                     "No notifications yet",
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'You\'ll receive notifications when teachers\nupdate or delete rooms you\'ve joined.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: Colors.black),
                   ),
                 ],
               ),

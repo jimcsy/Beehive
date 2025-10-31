@@ -1,4 +1,4 @@
-import 'package:beehive/start/login.dart';
+import 'package:beehive/core/login.dart';
 import 'package:flutter/material.dart';
 
 class LandingPage extends StatelessWidget {

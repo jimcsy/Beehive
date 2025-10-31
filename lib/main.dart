@@ -2,8 +2,8 @@ import 'package:beehive/debug/add_module_debug.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'start/wrapper.dart';
-import 'start/google_sign_in.dart';
+import 'core/wrapper.dart';
+import 'core/google_sign_in.dart';
 
 
 void main() async {

@@ -1,18 +1,18 @@
-import 'package:beehive/features/utils/profile_page.dart';
+import 'package:beehive/features/shared/profile_page.dart';
 import 'package:beehive/features/teachers/create_room.dart';
 import 'package:beehive/design/hexagonal.dart';
 import 'package:beehive/features/teachers/notify_students.dart';
 import 'package:beehive/features/teachers/rooms/view_room.dart';
 import 'package:beehive/features/teachers/t_modules_page.dart';
 import 'package:beehive/features/teachers/t_notifications_page.dart';
-import 'package:beehive/features/utils/drawer.dart';
-import 'package:beehive/features/utils/show_modal.dart';
-import 'package:beehive/start/login.dart';
+import 'package:beehive/features/shared/drawer.dart';
+import 'package:beehive/features/shared/show_modal.dart';
+import 'package:beehive/core/login.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import '../../start/google_sign_in.dart';
+import '../../core/google_sign_in.dart';
 
 class TeacherHomePage extends StatefulWidget {
   const TeacherHomePage({super.key});
@@ -336,25 +336,27 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
         final rooms = roomSnapshot.data?.docs ?? [];
 
         return Scaffold(
-          backgroundColor: Colors.white,
-          drawer: UserDrawer(
-            user: currentUser,
-            rooms: rooms,
-            onSignOut: signout,
-          ),
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            leading: Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu), // ☰ three-line button
-                onPressed: () => Scaffold.of(context).openDrawer(),
-                tooltip: 'Open Menu',
+        backgroundColor: Colors.white,
+        drawer: UserDrawer(
+          user: currentUser,
+          rooms: rooms,
+          onSignOut: signout,
+        ),
+        appBar: _selectedIndex == 3 // 3 is the index for Profile
+            ? null // Don't show an AppBar for the Profile tab
+            : AppBar( // Show the AppBar for all other tabs
+                backgroundColor: Colors.white,
+                leading: Builder(
+                  builder: (context) => IconButton(
+                    icon: const Icon(Icons.menu), // ☰ three-line button
+                    onPressed: () => Scaffold.of(context).openDrawer(),
+                    tooltip: 'Open Menu',
+                  ),
+                ),
+                title: Text(
+                    ['Home', 'Modules', 'Notifications', 'Profile'][_selectedIndex]),
               ),
-            ),
-            title: Text(
-                ['Home', 'Modules', 'Notifications', 'Profile'][_selectedIndex]),
-          ),
-          body: _pages(rooms)[_selectedIndex],
+        body: _pages(rooms)[_selectedIndex],
           floatingActionButton: _selectedIndex == 0
               ? HexFloatingButton(
                   size: 70,
