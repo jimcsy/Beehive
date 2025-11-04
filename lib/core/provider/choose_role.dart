@@ -1,5 +1,5 @@
+import 'package:beehive/widgets/button.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'signup.dart';
 import 'login.dart';
 
@@ -166,24 +166,9 @@ class _ChooseRolePageState extends State<ChooseRolePage> {
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
-                  width: 320,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: navigateToSignup,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFA27221),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    child: const Text("Next"),
-                  ),
+                CustomPrimaryButton(
+                  text: "Next", 
+                  onPressed: navigateToSignup
                 ),
                 const SizedBox(height: 10),
                 // Bottom text

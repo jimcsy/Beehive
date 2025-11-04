@@ -1,14 +1,18 @@
-import 'package:beehive/features/students/students_homepage.dart';
-import 'package:beehive/features/teachers/teachers_homepage.dart';
-import 'package:beehive/core/loader.dart';
-import 'package:beehive/core/login.dart';
+import 'package:beehive/core/services/firestore_services.dart';
+import 'package:beehive/core/provider/loader.dart';
+import 'package:beehive/core/provider/login.dart';
+import 'package:beehive/widgets/button.dart';
+import 'package:beehive/widgets/textfield.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart'; // <-- 1. NO LONGER NEEDED!
 import 'package:provider/provider.dart';
 import 'email_verification.dart';
-import 'google_sign_in.dart';
+import '../services/google_auth_services.dart';
+
+// --- 2. ADD IMPORTS FOR SERVICE AND MODEL ---
+import 'package:beehive/core/models/user_model.dart';
 
 class SignupPage extends StatefulWidget {
   final String selectedRole;
@@ -21,7 +25,7 @@ class SignupPage extends StatefulWidget {
 
 class _SignupPageState extends State<SignupPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // final FirebaseFirestore _firestore = FirebaseFirestore.instance; // <-- 3. DELETE THIS
 
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
@@ -31,7 +35,7 @@ class _SignupPageState extends State<SignupPage> {
 
   bool _isLoading = false;
   bool _stepOneCompleted = false;
-  bool _obscureText = true; // For password field
+  bool _obscureText = true;
 
   Future<void> _selectBirthday(BuildContext context) async {
     final DateTime? pickedDate = await showDatePicker(
@@ -60,6 +64,9 @@ class _SignupPageState extends State<SignupPage> {
     });
   }
 
+  // --- 
+  // --- 4. REFACTORED _signUp ---
+  // --- 
   Future<void> _signUp() async {
     FocusScope.of(context).unfocus();
 
@@ -72,7 +79,11 @@ class _SignupPageState extends State<SignupPage> {
 
     setState(() => _isLoading = true);
 
+    // Get the service from Provider *before* the async gap
+    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+
     try {
+      // Create auth user
       UserCredential userCredential =
           await _auth.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
@@ -81,14 +92,23 @@ class _SignupPageState extends State<SignupPage> {
 
       User? user = userCredential.user;
 
-      await _firestore.collection('users').doc(user!.uid).set({
-        'firstName': _firstNameController.text.trim(),
-        'lastName': _lastNameController.text.trim(),
-        'birthday': _birthdayController.text.trim(),
-        'email': user.email,
-        'role': widget.selectedRole,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      // --- REPLACED RAW FIRESTORE CALL ---
+      
+      // 1. Create the new UserModel object
+      final newUserModel = UserModel(
+        uid: user!.uid,
+        email: user.email!,
+        role: widget.selectedRole,
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        birthday: _birthdayController.text.trim(),
+        // createdAt will be handled by the service
+      );
+
+      // 2. Call the service to create the user
+      await firestoreService.createUser(newUserModel);
+      
+      // --- END OF REPLACEMENT ---
 
       await user.sendEmailVerification();
 
@@ -105,10 +125,15 @@ class _SignupPageState extends State<SignupPage> {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(message)));
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
+  // --- 
+  // --- 5. REFACTORED _signUpWithGoogle ---
+  // --- 
   Future<void> _signUpWithGoogle() async {
     final provider = Provider.of<GoogleSignInProvider>(context, listen: false);
 
@@ -123,63 +148,26 @@ class _SignupPageState extends State<SignupPage> {
       return;
     }
 
+    // Your GoogleSignInProvider already creates the user AND navigates.
+    // All we have to do is call it and pass in the details.
     try {
-      User? user = await provider.googleLogin(context, widget.selectedRole);
-
-      if (user != null) {
-        await _firestore.collection('users').doc(user.uid).set({
-          'firstName': _firstNameController.text.trim(),
-          'lastName': _lastNameController.text.trim(),
-          'birthday': _birthdayController.text.trim(),
-          'email': user.email,
-          'role': widget.selectedRole,
-          'createdAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Google Sign-In failed')),
+      await provider.googleLogin(
+        context,
+        widget.selectedRole,
+        // Pass the details from the controllers
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        birthday: _birthdayController.text.trim(),
       );
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Google Sign-In failed')),
+        );
+      }
     }
   }
-
-  // --- REUSABLE STYLE FUNCTION (Copied from Login) ---
-  /// This function builds the InputDecoration shared by the text fields.
-  InputDecoration _buildInputDecoration(String labelText, {Widget? suffixIcon}) {
-    return InputDecoration(
-      labelText: labelText,
-      labelStyle: const TextStyle(color: Colors.grey, fontSize: 12),
-      focusedBorder: OutlineInputBorder(
-        borderSide: const BorderSide(color: Color(0xFF443C36), width: 2),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderSide:
-            BorderSide(color: Color(0xFF443C36).withOpacity(0.3), width: 1.5),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      floatingLabelStyle: const TextStyle(color: Color(0xFF443C36)),
-      suffixIcon: suffixIcon,
-    );
-  }
-  // ---------------------------------------------------
-
-  // --- REUSABLE BUTTON STYLE (Copied from Login) ---
-  ButtonStyle _getPrimaryButtonStyle() {
-    return ElevatedButton.styleFrom(
-      backgroundColor: Color(0xFFA27221),
-      foregroundColor: Colors.white, // Text color
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(50), // Match login radius
-      ),
-      textStyle: TextStyle(
-        fontSize: 12, // Match login font size
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-  // ---------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -197,7 +185,7 @@ class _SignupPageState extends State<SignupPage> {
         ),
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: EdgeInsets.only(left: 24, right: 24, top: 0, bottom: 24), // Added bottom padding
+            padding: EdgeInsets.only(left: 24, right: 24, top: 0, bottom: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -230,37 +218,25 @@ class _SignupPageState extends State<SignupPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildTextField(_firstNameController, 'First Name'),
+        CustomTextField(controller: _firstNameController, label: 'First Name'),
         const SizedBox(height: 20),
-        _buildTextField(_lastNameController, 'Last Name'),
+        CustomTextField(controller: _lastNameController, label: 'Last Name'),
         const SizedBox(height: 20),
         SizedBox(
           height: 50,
-          child: TextField(
-            controller: _birthdayController,
-            readOnly: true,
-            style: const TextStyle(fontSize: 12), // Match style
-            cursorColor: Color(0xFF443C36), // Match style
-            decoration: _buildInputDecoration(
-              'Birthday',
-              suffixIcon: IconButton(
+          child: CustomTextField(
+            controller: _birthdayController, 
+            label: 'Birthday', 
+            suffixIcon: IconButton(
                 icon: const Icon(Icons.calendar_today, color: Colors.grey),
                 onPressed: () => _selectBirthday(context),
               ),
             ),
           ),
-        ),
         const SizedBox(height: 30),
-        SizedBox( // <-- Added SizedBox for height
+        SizedBox(
           height: 50,
-          child: ElevatedButton(
-            onPressed: _goToStepTwo,
-            style: _getPrimaryButtonStyle(), // <-- Applied style
-            child: const Text(
-              'Next',
-              // Text style is now defined in _getPrimaryButtonStyle
-            ),
-          ),
+          child: CustomPrimaryButton(text: 'Next', onPressed: _goToStepTwo),
         ),
       ],
     );
@@ -270,54 +246,42 @@ class _SignupPageState extends State<SignupPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildTextField(_emailController, 'Email Address'),
+        CustomTextField(controller: _emailController, label: 'Email Address'),
         const SizedBox(height: 16),
-        // Updated Password Field
         SizedBox(
           height: 50,
-          child: TextField(
-            controller: _passwordController,
-            obscureText: _obscureText,
-            style: const TextStyle(fontSize: 12),
-            cursorColor: Color(0xFF443C36),
-            decoration: _buildInputDecoration(
-              "Password",
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscureText ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.grey,
-                  size: 20,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _obscureText = !_obscureText;
-                  });
-                },
+          child: CustomTextField(
+            controller: _passwordController, 
+            label: "Password",
+            obscure: _obscureText,
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscureText ? Icons.visibility_off : Icons.visibility,
+                color: Colors.grey,
+                size: 20,
               ),
+              onPressed: () {
+                setState(() {
+                  _obscureText = !_obscureText;
+                });
+              },
             ),
           ),
         ),
-        const SizedBox(height: 190),
-        SizedBox( // <-- Added SizedBox for height
-          height: 50,
-          child: ElevatedButton(
-            onPressed: _signUp,
-            style: _getPrimaryButtonStyle(), // <-- Applied style
-            child: const Text(
-              'Sign up',
-              // Text style is now defined in _getPrimaryButtonStyle
-            ),
-          ),
-        ),
-        const SizedBox(height: 25),
 
-        // Divider
+        const SizedBox(height: 190),
+        SizedBox(
+          height: 50,
+          child: CustomPrimaryButton(text: 'Sign up', onPressed: _signUp),
+        ),
+        
+        const SizedBox(height: 25),
         Row(
-          children: [ // <-- Removed const
-            Expanded(child: Divider(thickness: 1, color: Colors.grey)), // <-- Matched login
+          children: [
+            Expanded(child: Divider(thickness: 1, color: Colors.grey)),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12), // <-- Matched login
-              child: Text( // <-- Matched login
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
                 "Sign up with",
                 style: TextStyle(
                   fontSize: 12,
@@ -326,16 +290,15 @@ class _SignupPageState extends State<SignupPage> {
                 ),
               ),
             ),
-            Expanded(child: Divider(thickness: 1, color: Colors.grey)), // <-- Matched login
+            Expanded(child: Divider(thickness: 1, color: Colors.grey)),
           ],
         ),
-        const SizedBox(height: 20), // <-- Matched login
-
-        Center( // <-- Added Center
-          child: SizedBox( // <-- Added SizedBox
+        const SizedBox(height: 20),
+        Center(
+          child: SizedBox(
             width: 48,
             height: 48,
-            child: ElevatedButton( // <-- Changed from GestureDetector
+            child: ElevatedButton(
               onPressed: _signUpWithGoogle,
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.zero,
@@ -346,27 +309,26 @@ class _SignupPageState extends State<SignupPage> {
               ),
               child: Image.asset(
                 './assets/icons/google_logo.png',
-                height: 24, 
-                width: 24, 
+                height: 24,
+                width: 24,
               ),
             ),
           ),
         ),
-        const SizedBox(height: 30), 
-
+        const SizedBox(height: 30),
         Center(
           child: RichText(
             text: TextSpan(
               style: const TextStyle(
                 color: Color(0xFF443C36),
-                fontSize: 16, 
+                fontSize: 16,
               ),
               children: [
                 const TextSpan(text: 'Already have an account? '),
                 TextSpan(
-                  text: 'Sign in', 
+                  text: 'Sign in',
                   style: const TextStyle(
-                    fontWeight: FontWeight.bold, 
+                    fontWeight: FontWeight.bold,
                     decoration: TextDecoration.underline,
                   ),
                   recognizer: TapGestureRecognizer()
@@ -384,24 +346,8 @@ class _SignupPageState extends State<SignupPage> {
       ],
     );
   }
-
-  // Updated _buildTextField to use the reusable decoration
-  Widget _buildTextField(TextEditingController controller, String label,
-      {bool obscure = false}) {
-    return SizedBox(
-      height: 50,
-      child: TextField(
-        controller: controller,
-        obscureText: obscure,
-        style: const TextStyle(fontSize: 12), // Added style
-        cursorColor: Color(0xFF443C36),
-        decoration: _buildInputDecoration(label), // --- STYLE APPLIED ---
-      ),
-    );
-  }
 }
 
 extension StringCasingExtension on String {
   String capitalize() => '${this[0].toUpperCase()}${substring(1)}';
 }
-

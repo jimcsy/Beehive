@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:beehive/design/hexagonal.dart'; // Uses your HexClipper
+import 'package:beehive/utils/hexagonal.dart'; // Uses your HexClipper
 
 // --- 1. DATA & STATE LOGIC ---
 

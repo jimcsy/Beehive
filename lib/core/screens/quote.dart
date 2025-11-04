@@ -1,5 +1,6 @@
-import 'package:beehive/core/choose_role.dart';
-import 'package:beehive/core/login.dart';
+import 'package:beehive/core/provider/choose_role.dart';
+import 'package:beehive/core/provider/login.dart';
+import 'package:beehive/widgets/button.dart';
 import 'package:flutter/material.dart';
 
 class BuzzIntoCoding extends StatefulWidget {
@@ -49,10 +50,10 @@ class _BuzzIntoCodingState extends State<BuzzIntoCoding> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
-                    width: 320,
-                    height: 50,
-                    child: ElevatedButton(
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 25),
+                    child: CustomPrimaryButton(
+                      text: "Continue", 
                       onPressed: () {
                         Navigator.pushReplacement(
                           context,
@@ -61,18 +62,6 @@ class _BuzzIntoCodingState extends State<BuzzIntoCoding> {
                           ),
                         );
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFA27221),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(50),
-                        ),
-                        textStyle: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      child: const Text("Continue"),
                     ),
                   ),
                   const SizedBox(height: 10),

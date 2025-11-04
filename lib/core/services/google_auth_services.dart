@@ -1,11 +1,16 @@
+import 'package:beehive/core/services/firestore_services.dart';
 import 'package:beehive/features/students/students_homepage.dart';
-import 'package:beehive/core/loader.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:beehive/core/provider/loader.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart'; // <-- NO LONGER NEEDED
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import '../features/teachers/teachers_homepage.dart';
-import 'login.dart';
+import '../../features/teachers/teachers_homepage.dart';
+import '../provider/login.dart';
+
+// --- 1. ADD IMPORTS FOR PROVIDER, SERVICE, AND MODEL ---
+import 'package:provider/provider.dart';
+import 'package:beehive/core/models/user_model.dart';
 
 class GoogleSignInProvider extends ChangeNotifier {
   final googleSignIn = GoogleSignIn(
@@ -15,7 +20,6 @@ class GoogleSignInProvider extends ChangeNotifier {
   GoogleSignInAccount? _user;
   GoogleSignInAccount? get user => _user;
 
-  // Updated: Added optional parameters for firstName, lastName, birthday
   Future<User?> googleLogin(
     BuildContext context,
     String selectedRole, {
@@ -23,6 +27,9 @@ class GoogleSignInProvider extends ChangeNotifier {
     String? lastName,
     String? birthday,
   }) async {
+    // --- 2. GET SERVICE FROM PROVIDER (before any 'await') ---
+    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+
     try {
       showDialog(
         context: context,
@@ -50,12 +57,12 @@ class GoogleSignInProvider extends ChangeNotifier {
       final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
       final user = userCredential.user;
 
-      final userDoc = FirebaseFirestore.instance.collection('users').doc(user!.uid);
-      final docSnapshot = await userDoc.get();
-
+      // --- 3. REFACTORED: CHECK IF USER EXISTS VIA SERVICE ---
+      final existingUser = await firestoreService.getUser(user!.uid);
+      
       Navigator.pop(context); // close loader
 
-      if (docSnapshot.exists) {
+      if (existingUser != null) {
         // Account already exists
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Account already exists, please log in.')),
@@ -67,26 +74,36 @@ class GoogleSignInProvider extends ChangeNotifier {
           MaterialPageRoute(builder: (_) => const Login()),
         );
       } else {
-        // Save user to Firestore
-        await userDoc.set({
-          'email': user.email,
-          'role': selectedRole,
-          'firstName': firstName ?? '',
-          'lastName': lastName ?? '',
-          'birthday': birthday ?? '',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+        // --- 4. REFACTORED: CREATE USER VIA MODEL & SERVICE ---
+        
+        // Create the new UserModel object
+        final newUserModel = UserModel(
+          uid: user.uid,
+          email: user.email ?? '',
+          role: selectedRole,
+          firstName: firstName ?? '',
+          lastName: lastName ?? '',
+          birthday: birthday ?? '',
+          // createdAt is handled by the service
+        );
+        
+        // Save user to Firestore using the service
+        await firestoreService.createUser(newUserModel);
 
-        // Redirect based on role
+        // --- 5. REFACTORED: NAVIGATE AND PASS THE MODEL ---
         if (selectedRole == 'student') {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const StudentHomePage()),
+            MaterialPageRoute(
+              builder: (_) => StudentHomePage(userModel: newUserModel), // <-- PASS MODEL
+            ),
           );
         } else if (selectedRole == 'teacher') {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const TeacherHomePage()),
+            MaterialPageRoute(
+              builder: (_) => TeacherHomePage(userModel: newUserModel), // <-- PASS MODEL
+            ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -98,7 +115,7 @@ class GoogleSignInProvider extends ChangeNotifier {
       notifyListeners();
       return user;
     } catch (e) {
-      Navigator.pop(context);
+      if (context.mounted) Navigator.pop(context);
       debugPrint('⚠️ Google Sign-In Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Google Sign-In failed, please try again.')),

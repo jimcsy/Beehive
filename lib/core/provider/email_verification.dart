@@ -1,10 +1,16 @@
+import 'package:beehive/core/services/firestore_services.dart';
 import 'package:flutter/material.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
-import '../features/teachers/teachers_homepage.dart';
-import '../features/students/students_homepage.dart';
-import 'login.dart'; // <-- 1. ADDED THIS IMPORT
+import '../../features/teachers/teachers_homepage.dart';
+import '../../features/students/students_homepage.dart';
+import 'login.dart';
+
+// --- 2. ADD THESE IMPORTS ---
+import 'package:provider/provider.dart';
+
+
 
 class EmailVerificationPage extends StatefulWidget {
   final User user;
@@ -53,9 +59,9 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
 
   Future<void> checkEmailVerified() async {
     try {
-      // reload the passed-in user then read the current user from FirebaseAuth
       await widget.user.reload();
       final current = FirebaseAuth.instance.currentUser;
+      
       if (current != null && current.emailVerified) {
         if (!mounted) return;
         setState(() => isEmailVerified = true);
@@ -71,6 +77,8 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
 
         await Future.delayed(const Duration(milliseconds: 1200));
         if (!mounted) return;
+
+        // --- 3. CALL THE REFACTORED FUNCTION ---
         _navigateBasedOnRole(current.uid);
       }
     } catch (e) {
@@ -78,12 +86,19 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
     }
   }
 
+  // --- 
+  // --- 4. THIS ENTIRE FUNCTION IS REFACTORED ---
+  // --- 
   Future<void> _navigateBasedOnRole(String uid) async {
     try {
-      final doc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      // Get the service from Provider
+      final firestoreService =
+          Provider.of<FirestoreService>(context, listen: false);
 
-      if (!doc.exists) {
+      // Get the clean user model
+      final userModel = await firestoreService.getUser(uid);
+
+      if (userModel == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -92,15 +107,23 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
         return;
       }
 
-      final role = doc.data()?['role'];
-      if (role == 'teacher') {
+      // Use the clean model to check the role and navigate
+      if (userModel.role == 'teacher') {
         if (!mounted) return;
         Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (_) => const TeacherHomePage()));
-      } else if (role == 'student') {
+          context,
+          MaterialPageRoute(
+            builder: (_) => TeacherHomePage(userModel: userModel), // <-- PASS MODEL
+          ),
+        );
+      } else if (userModel.role == 'student') {
         if (!mounted) return;
         Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (_) => const StudentHomePage()));
+          context,
+          MaterialPageRoute(
+            builder: (_) => StudentHomePage(userModel: userModel), // <-- PASS MODEL
+          ),
+        );
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -164,7 +187,9 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error sending verification: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Error sending verification: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -184,33 +209,22 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
 
   @override
   Widget build(BuildContext context) {
-    const Color gold = Color(0xFFD09A10);
-    const Color goldDark = Color(0xFFB57A00);
-
+    // ... (Your build method is unchanged as it's all UI) ...
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        // --- THIS IS THE FIX ---
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () async {
-            // 1. Stop all background activity
             _timer?.cancel();
             _cooldownTimer?.cancel();
-
-            // 2. Sign the user out to cancel verification
             await _signOut();
-
-            // 3. Go back to the Login page
             if (mounted) {
-              // --- 2. CHANGED THIS ---
-              // Replace this page with the Login page instead of pop()
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(builder: (context) => const Login()),
               );
-              // --- END OF CHANGE ---
             }
           },
         ),
@@ -220,12 +234,10 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
           builder: (context, constraints) {
             return SingleChildScrollView(
               child: ConstrainedBox(
-                // ensure column fills viewport so Spacer() works
                 constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: IntrinsicHeight(
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 28.0, vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 8.0),
                     child: Column(
                       children: [
                         // top content
@@ -249,27 +261,24 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
                         const SizedBox(height: 8),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                          // Use RichText for mixed styles in one line
                           child: RichText(
                             textAlign: TextAlign.center,
                             strutStyle: StrutStyle(
-                            height: 1.8, // 1.0 is the default. 1.4 means 140% line height.
-                            forceStrutHeight: true,
-                          ),
+                              height: 1.8, 
+                              forceStrutHeight: true,
+                            ),
                             text: TextSpan(
-                              // This is the default style for the whole sentence
                               style: const TextStyle(fontSize: 18, color: Colors.black),
                               children: [
                                 const TextSpan(
                                   text: "We’ve sent a link to ",
                                 ),
-                                // This is the span for the email
                                 TextSpan(
                                   text: widget.user.email ?? 'your email',
                                   style: const TextStyle(
-                                    fontSize: 18, // Kept size 15 for consistency
-                                    fontWeight: FontWeight.w600, // Make it bold to stand out
-                                    color: Colors.black87, // Give it a stronger color
+                                    fontSize: 18, 
+                                    fontWeight: FontWeight.w600, 
+                                    color: Colors.black87,
                                   ),
                                 ),
                                 const TextSpan(
@@ -284,7 +293,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
                         if (!isEmailVerified) const DotLoadingAnimation(),
                         const SizedBox(height: 22),
 
-                        // bottom controls (kept full width)
+                        // bottom controls
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -295,14 +304,13 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
                                     canResendEmail ? resendVerificationEmail : null,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Color(0xFFA27221),
-                                  foregroundColor: Colors.white,  // Text color
+                                  foregroundColor: Colors.white,  
                                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                  //elevation: 4, // Drop shadow
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(50), // Match TextField radius
+                                    borderRadius: BorderRadius.circular(50), 
                                   ),
                                   textStyle: TextStyle(
-                                    fontSize: 12, // Match TextField font size
+                                    fontSize: 12, 
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -337,7 +345,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
   }
 }
 
-/// 🌙 Subtle 3-dot loading animation (non-distracting)
+// ... (DotLoadingAnimation class is unchanged) ...
 class DotLoadingAnimation extends StatefulWidget {
   const DotLoadingAnimation({super.key});
 
@@ -380,4 +388,3 @@ class _DotLoadingAnimationState extends State<DotLoadingAnimation>
     );
   }
 }
-

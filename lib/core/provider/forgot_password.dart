@@ -1,10 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-// -------------------------------------------------------------------
-//  SECTION 1: The function to show the modal
-// -------------------------------------------------------------------
-
 /// This is the function you will call from your GestureDetector.
 /// It needs the 'context' from the page it's being called from.
 void showForgotPasswordModal(BuildContext context) {

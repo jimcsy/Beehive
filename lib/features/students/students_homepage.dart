@@ -3,16 +3,23 @@ import 'package:beehive/features/shared/profile_page.dart';
 import 'package:beehive/features/students/rooms_page.dart';
 import 'package:beehive/features/shared/drawer.dart'; // Make sure this path is correct
 import 'package:beehive/features/students/modules/view_lesson.dart';
-import 'package:beehive/core/loader.dart';
-import 'package:beehive/core/login.dart';
+import 'package:beehive/core/provider/loader.dart';
+import 'package:beehive/core/provider/login.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import '../../core/google_sign_in.dart';
+import '../../core/services/google_auth_services.dart';
+
+// --- 1. IMPORT YOUR USER MODEL ---
+import 'package:beehive/core/models/user_model.dart';
 
 class StudentHomePage extends StatefulWidget {
-  const StudentHomePage({super.key});
+  // --- 2. ADD THIS LINE TO RECEIVE THE PARAMETER ---
+  final UserModel userModel;
+  const StudentHomePage({
+    super.key, 
+    required this.userModel,});
 
   @override
   StudentHomePageState createState() => StudentHomePageState();
@@ -31,44 +38,8 @@ class StudentHomePageState extends State<StudentHomePage> {
   @override
   void initState() {
     super.initState();
-    fetchUserRole();
     loadRecentModule();
   }
-
-  Future<void> fetchUserRole() async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user?.uid)
-          .get();
-
-      if (doc.exists && doc.data() != null && doc.data()!.containsKey('role')) {
-        setState(() {
-          role = doc['role'];
-          isLoading = false;
-        });
-      } else {
-        final query = await FirebaseFirestore.instance
-            .collection('users')
-            .where('email', isEqualTo: user?.email)
-            .limit(1)
-            .get();
-
-        if (query.docs.isNotEmpty) {
-          setState(() {
-            role = query.docs.first['role'];
-            isLoading = false;
-          });
-        } else {
-          setState(() => isLoading = false);
-        }
-      }
-    } catch (e) {
-      debugPrint('Error fetching role: $e');
-      setState(() => isLoading = false);
-    }
-  }
-
   // Load last opened module if exists
   Future<void> loadRecentModule() async {
     final recentDoc = await FirebaseFirestore.instance

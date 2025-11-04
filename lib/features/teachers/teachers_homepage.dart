@@ -1,21 +1,29 @@
 import 'package:beehive/features/shared/notification_page.dart';
 import 'package:beehive/features/shared/profile_page.dart';
 import 'package:beehive/features/teachers/create_room.dart';
-import 'package:beehive/design/hexagonal.dart';
+import 'package:beehive/utils/hexagonal.dart';
 import 'package:beehive/features/teachers/notify_students.dart';
 import 'package:beehive/features/teachers/rooms/view_room.dart';
 import 'package:beehive/features/teachers/module_page.dart';
 import 'package:beehive/features/shared/drawer.dart';
 import 'package:beehive/features/shared/show_modal.dart';
-import 'package:beehive/core/login.dart';
+import 'package:beehive/core/provider/login.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import '../../core/google_sign_in.dart';
+import '../../core/services/google_auth_services.dart';
+
+// --- 1. IMPORT YOUR USER MODEL ---
+import 'package:beehive/core/models/user_model.dart';
 
 class TeacherHomePage extends StatefulWidget {
-  const TeacherHomePage({super.key});
+  final UserModel userModel;
+  const TeacherHomePage({
+    super.key,
+    // --- 3. MAKE IT REQUIRED IN THE CONSTRUCTOR ---
+    required this.userModel,
+  });
 
   @override
   State<TeacherHomePage> createState() => _TeacherHomePageState();

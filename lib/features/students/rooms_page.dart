@@ -1,4 +1,4 @@
-import 'package:beehive/design/hexagonal.dart';
+import 'package:beehive/utils/hexagonal.dart';
 import 'package:beehive/features/students/join_room.dart';
 import 'package:beehive/features/students/modules/view_lesson.dart';
 import 'package:flutter/material.dart';
