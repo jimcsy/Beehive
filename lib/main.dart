@@ -1,15 +1,29 @@
-import 'package:beehive/debug/add_module_debug.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:serious_python/serious_python.dart';
 import 'core/wrapper.dart';
 import 'core/google_sign_in.dart';
 
-
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Firebase.initializeApp();
-  runApp(MyApp());
+
+  // --- Run the embedded Python server before app start ---
+  try {
+    print("Starting embedded Python Flask server...");
+    await SeriousPython.run(
+      "assets/python/server.zip",
+      appFileName: "main.py",
+    );
+    print("✅ Python server started successfully!");
+  } catch (e) {
+    print("❌ Failed to start Python server: $e");
+  }
+
+  // --- Now launch the Flutter UI ---
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -23,19 +37,19 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         title: 'Beehive',
         theme: ThemeData(
-          scaffoldBackgroundColor: Colors.white, 
+          scaffoldBackgroundColor: Colors.white,
           primarySwatch: Colors.amber,
-          bottomNavigationBarTheme: BottomNavigationBarThemeData(
-          selectedItemColor: const Color(0xFFA27221), // Your selected icon color
-          unselectedItemColor: Colors.grey,           // Unselected icons
-          backgroundColor: Colors.white,              // Background color
-          enableFeedback: true,                       // Enable tap feedback
-          type: BottomNavigationBarType.fixed,        // Fixed type (optional)
+          bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+            selectedItemColor: Color(0xFFA27221),
+            unselectedItemColor: Colors.grey,
+            backgroundColor: Colors.white,
+            enableFeedback: true,
+            type: BottomNavigationBarType.fixed,
+          ),
+          splashColor: const Color(0xFFF4E3C2),
+          highlightColor: const Color(0xFFF4E3C2).withOpacity(0.2),
         ),
-        splashColor: Color(0xFFF4E3C2),                   // Ripple color when tapped
-        highlightColor: Color(0xFFF4E3C2).withOpacity(0.2), // Highlight when tapping
-        ),
-        home: Wrapper(), // This will listen for auth state
+        home: Wrapper(),
       ),
     );
   }

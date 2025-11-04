@@ -48,12 +48,15 @@ dependencies:
   
   # State Management
   provider: ^6.1.5
+  serious_python: ^0.9.4
+  http: ^1.5.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_launcher_icons: ^0.13.1
   flutter_lints: ^6.0.0
+
 
 flutter_icons:
   android: true
@@ -77,6 +80,7 @@ flutter:
     - assets/icons/
     - assets/icons/gifs/
     - assets/icons/images/
+    - assets/python/
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

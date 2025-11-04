@@ -1,3 +1,4 @@
+import 'package:beehive/python_ide/ide_test_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -211,7 +212,13 @@ class UserDrawer extends StatelessWidget {
                   }).toList(),
         
                   const Divider(),
-        
+                  ListTile(
+                    leading: const Icon(Icons.terminal),
+                    title: const Text('Swarm',style: TextStyle(fontSize: 14),),
+                    onTap: () {
+                      _navigateTo(context, const IdeTestScreen());
+                    },
+                  ),
                   ListTile(
                     leading: const Icon(Icons.settings_outlined),
                     title: const Text('Settings',style: TextStyle(fontSize: 14),),

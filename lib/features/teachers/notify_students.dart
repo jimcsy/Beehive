@@ -73,19 +73,6 @@ Future<void> notifyStudentsOnRoomDelete({
           'type': 'room_deletion',
         });
 
-        // 🔹 Clean up: Remove the room from student's joinedRooms subcollection
-        final joinedRoomsSnapshot = await firestore
-            .collection('users')
-            .doc(studentId)
-            .collection('joinedRooms')
-            .where('roomId', isEqualTo: roomId)
-            .get();
-            
-        for (var joinedRoomDoc in joinedRoomsSnapshot.docs) {
-          await joinedRoomDoc.reference.delete();
-          print("🧹 Cleaned up joinedRoom for $studentEmail");
-        }
-
         print("📩 Notification sent to $studentEmail ($studentId)");
       } catch (notifError) {
         print("❌ Failed to send notification to $studentId: $notifError");
