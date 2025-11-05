@@ -106,7 +106,7 @@ class _SignupPageState extends State<SignupPage> {
       );
 
       // 2. Call the service to create the user
-      await firestoreService.createUser(newUserModel);
+      await firestoreService.users.createUser(newUserModel);
       
       // --- END OF REPLACEMENT ---
 

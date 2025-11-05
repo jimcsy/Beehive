@@ -1,9 +1,16 @@
+import 'package:beehive/core/services/firestore_services.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart'; // <-- 1. NO LONGER NEEDED
+// import 'package:firebase_auth/firebase_auth.dart'; // <-- 2. NO LONGER NEEDED
+
+// --- 3. ADD IMPORTS FOR SERVICES AND MODELS ---
+import 'package:provider/provider.dart';
+import 'package:beehive/core/models/user_model.dart';
 
 class JoinRoomDialog extends StatefulWidget {
-  const JoinRoomDialog({super.key});
+  // --- 4. ACCEPT THE USERMODEL ---
+  final UserModel userModel;
+  const JoinRoomDialog({super.key, required this.userModel});
 
   @override
   State<JoinRoomDialog> createState() => _JoinRoomDialogState();
@@ -11,63 +18,58 @@ class JoinRoomDialog extends StatefulWidget {
 
 class _JoinRoomDialogState extends State<JoinRoomDialog> {
   final TextEditingController codeController = TextEditingController();
-  final user = FirebaseAuth.instance.currentUser;
+  // final user = FirebaseAuth.instance.currentUser; // <-- 5. REMOVED
   bool isLoading = false;
 
+  // --- 6. FULLY REFACTORED joinRoom FUNCTION ---
   Future<void> joinRoom() async {
     final code = codeController.text.trim();
     if (code.isEmpty) return;
 
     setState(() => isLoading = true);
 
+    // Get the service from Provider
+    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(code)
-          .get();
+      // 1. Check if the room exists
+      final bool roomExists = await firestoreService.rooms.checkRoomExists(code);
 
-      if (!doc.exists) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Room not found!")),
-        );
-        setState(() => isLoading = false);
-        return;
+      if (!roomExists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Room not found!")),
+          );
+        }
+      } else {
+        // 2. If it exists, join the room
+        await firestoreService.rooms.joinRoom(code, widget.userModel);
+
+        if (mounted) {
+          Navigator.pop(context); // Close the dialog
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Joined room successfully!")),
+          );
+        }
       }
-
-      await FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(code)
-          .collection('members')
-          .doc(user!.uid)
-          .set({
-        'email': user!.email,
-        'joinedAt': FieldValue.serverTimestamp(),
-      });
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .collection('joinedRooms')
-          .doc(code)
-          .set({
-        'roomId': code,
-        'joinedAt': FieldValue.serverTimestamp(),
-      });
-
-      Navigator.pop(context);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Joined room successfully!")),
-      );
     } catch (e) {
       debugPrint("Error joining room: $e");
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to join room.")),
+        );
+      }
     }
 
-    setState(() => isLoading = false);
+    if (mounted) {
+      setState(() => isLoading = false);
+    }
   }
 
-   @override
+  @override
   Widget build(BuildContext context) {
+    // --- 7. YOUR ENTIRE BUILD METHOD IS UNCHANGED ---
+    // (It was already clean and just contains UI code)
     return AlertDialog(
       backgroundColor: Colors.white,
       title: const Text(
@@ -78,7 +80,6 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
           fontWeight: FontWeight.w800,
         ),
       ),
-      // 2. Content is the TextField
       content: SizedBox(
         height: 50,
         child: TextField(
@@ -100,21 +101,17 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
           ),
         ),
       ),
-      // 3. Actions use the styled two-button layout
       actions: [
         Row(
           children: [
-            // "Cancel" button, styled like "No"
             Expanded(
               flex: 1,
               child: ElevatedButton(
-                onPressed: () => Navigator.pop(context), // Just pops
+                onPressed: () => Navigator.pop(context), 
                 style: ButtonStyle(
                   backgroundColor:
                       MaterialStateProperty.all(const Color(0xFFA27221)),
                   foregroundColor: MaterialStateProperty.all(Colors.white),
-                  // --- ADD THIS LINE ---
-                  // This makes the button fill the width of the Expanded
                   minimumSize:
                       MaterialStateProperty.all(const Size(double.infinity, 40)),
                   shape: MaterialStateProperty.all(
@@ -129,7 +126,6 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
             const SizedBox(
               width: 10,
             ),
-            // "Join" button, styled like "Yes"
             Expanded(
               flex: 1,
               child: ElevatedButton(
@@ -138,8 +134,6 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
                   backgroundColor: MaterialStateProperty.all(
                       const Color.fromARGB(255, 235, 200, 95)),
                   foregroundColor: MaterialStateProperty.all(Colors.white),
-                  // --- ADD THIS LINE ---
-                  // This makes the button fill the width of the Expanded
                   minimumSize:
                       MaterialStateProperty.all(const Size(double.infinity, 40)),
                   shape: MaterialStateProperty.all(
@@ -148,7 +142,6 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
                     ),
                   ),
                 ),
-                // Show loading indicator or text
                 child: isLoading
                     ? const SizedBox(
                         width: 18,
@@ -167,4 +160,3 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
     );
   }
 }
-

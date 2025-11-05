@@ -56,7 +56,7 @@ class _LoginState extends State<Login> {
       // --- 3. REFACTORED: USE SERVICE AND MODEL ---
       final String uid = userCredential.user!.uid;
       // Fetch the clean user model from our service
-      final userModel = await firestoreService.getUser(uid);
+      final userModel = await firestoreService.users.getUser(uid);
 
       if (userModel != null) {
         // Check if the widget is still on-screen before navigating
@@ -174,7 +174,7 @@ class _LoginState extends State<Login> {
         // --- 4. REFACTORED GOOGLE Log in ---
         
         // Fetch the user's model from our service
-        final userModel = await firestoreService.getUser(uid!);
+        final userModel = await firestoreService.users.getUser(uid!);
 
         if (!mounted) return;
 

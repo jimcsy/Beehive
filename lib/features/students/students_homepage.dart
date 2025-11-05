@@ -1,64 +1,114 @@
+import 'package:beehive/core/services/firestore_services.dart';
 import 'package:beehive/features/shared/notification_page.dart';
 import 'package:beehive/features/shared/profile_page.dart';
 import 'package:beehive/features/students/rooms_page.dart';
-import 'package:beehive/features/shared/drawer.dart'; // Make sure this path is correct
+import 'package:beehive/features/shared/drawer.dart';
 import 'package:beehive/features/students/modules/view_lesson.dart';
 import 'package:beehive/core/provider/loader.dart';
 import 'package:beehive/core/provider/login.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import '../../core/services/google_auth_services.dart';
 
-// --- 1. IMPORT YOUR USER MODEL ---
+import 'package:beehive/core/services/google_auth_services.dart';
 import 'package:beehive/core/models/user_model.dart';
+import 'package:beehive/core/models/room_model.dart';
 
 class StudentHomePage extends StatefulWidget {
-  // --- 2. ADD THIS LINE TO RECEIVE THE PARAMETER ---
   final UserModel userModel;
   const StudentHomePage({
-    super.key, 
-    required this.userModel,});
+    super.key,
+    required this.userModel,
+  });
 
   @override
   StudentHomePageState createState() => StudentHomePageState();
 }
 
 class StudentHomePageState extends State<StudentHomePage> {
-  final user = FirebaseAuth.instance.currentUser;
-  String? role;
-  bool isLoading = true;
   int _selectedIndex = 0;
-
-  // Store recent module to show in Home
   String? _recentRoomId;
   String? _recentModuleId;
+
+  // --- 1. THIS IS THE FIX ---
+  // We create the list of pages here, in initState.
+  // This ensures they are created ONLY ONCE and their state is preserved.
+  late List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
-    loadRecentModule();
+    _loadRecentModule();
+    
+    // Initialize the page list once
+    _pages = [
+      // Home Tab
+      _buildHomeTab(), // Use a helper function for the home tab
+      
+      // Room Tab
+      StudentRoomPage(
+        userModel: widget.userModel, 
+        onModuleSelected: (roomId, moduleId) {
+          _handleModuleSelection(roomId, moduleId);
+        },
+      ),
+      
+      // Notifications Tab
+      const NotificationPage(),
+      
+      // Profile Tab
+      ProfilePage(onGoToHome: () => _onItemTapped(0)),
+    ];
   }
-  // Load last opened module if exists
-  Future<void> loadRecentModule() async {
-    final recentDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user!.uid)
-        .collection('recent')
-        .doc('lastOpened')
-        .get();
 
-    if (recentDoc.exists) {
-      final data = recentDoc.data()!;
-      setState(() {
-        _recentRoomId = data['roomId'];
-        _recentModuleId = data['moduleId'];
-      });
+  // Helper function to build the home tab
+  Widget _buildHomeTab() {
+    if (_recentRoomId != null && _recentModuleId != null) {
+      return ViewUnitsTab(roomId: _recentRoomId!, moduleId: _recentModuleId!);
+    } else {
+      return const Center(child: Text("No modules available yet."));
     }
   }
 
-  Future<void> signout() async {
+  // Helper function to update state and rebuild pages
+  void _handleModuleSelection(String roomId, String moduleId) {
+    setState(() {
+      _recentRoomId = roomId;
+      _recentModuleId = moduleId;
+      _selectedIndex = 0; // switch to Home tab
+      
+      // --- 2. THIS IS THE OTHER PART OF THE FIX ---
+      // We must *rebuild* the page list to update the Home tab
+      _pages = [
+        _buildHomeTab(), // This will now have the new recent module
+        _pages[1], // Re-use the existing StudentRoomPage instance
+        _pages[2], // Re-use the existing NotificationPage instance
+        _pages[3], // Re-use the existing ProfilePage instance
+      ];
+    });
+  }
+  // --- END OF FIX ---
+
+
+  Future<void> _loadRecentModule() async {
+    final firestoreService =
+        Provider.of<FirestoreService>(context, listen: false);
+    final recentModule =
+        await firestoreService.users.getRecentModule(widget.userModel.uid);
+
+    if (recentModule != null) {
+      if (mounted) {
+        setState(() {
+          _recentRoomId = recentModule.roomId;
+          _recentModuleId = recentModule.moduleId;
+          
+          // Rebuild pages list if recent module is loaded
+          _pages[0] = _buildHomeTab();
+        });
+      }
+    }
+  }
+
+ Future<void> signout() async {
     try {
       showDialog(
         context: context,
@@ -87,170 +137,94 @@ class StudentHomePageState extends State<StudentHomePage> {
     }
   }
 
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
-  // Build pages dynamically
-  List<Widget> _buildPages() {
-    return [
-      if (_recentRoomId != null && _recentModuleId != null)
-        ViewUnitsTab(roomId: _recentRoomId!, moduleId: _recentModuleId!)
-      else
-        const Center(child: Text("No modules available yet.")),
-
-      StudentRoomPage(
-        onModuleSelected: (roomId, moduleId) {
-          setState(() {
-            _recentRoomId = roomId;
-            _recentModuleId = moduleId;
-            _selectedIndex = 0; // switch to Home tab
-          });
-        },
-      ),
-      const NotificationPage(),
-      ProfilePage(onGoToHome: () => _onItemTapped(0)),
-    ]; 
-  }
-
-  //
-  // --- START OF UPDATED CODE ---
-  //
+  // This function is no longer needed, we defined _pages in initState
+  // List<Widget> _buildPages() { ... }
 
   @override
   Widget build(BuildContext context) {
-    final pages = _buildPages();
-    final currentUser = FirebaseAuth.instance.currentUser;
+    // We REMOVED final pages = _buildPages() from here.
+    
+    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
 
-    if (currentUser == null) {
-      // If not, you can't query their rooms. Show a login prompt or different UI.
-      return const Scaffold(
-        body: Center(
-          child: Text('Please log in to see your rooms.'),
-        ),
-      );
-    }
-
-    // 1. Outer StreamBuilder: Gets the list of room IDs from /users/.../joinedRooms
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .collection('joinedRooms')
-          .snapshots(),
-      builder: (context, userRoomsSnapshot) {
-        if (userRoomsSnapshot.connectionState == ConnectionState.waiting) {
+    // This StreamBuilder is now *only* for the UserDrawer.
+    // It will no longer cause the body to rebuild.
+    return StreamBuilder<List<String>>(
+      stream: firestoreService.users.getJoinedRoomIdsStream(widget.userModel.uid),
+      builder: (context, idSnapshot) {
+        if (idSnapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            backgroundColor: Colors.white,
+              backgroundColor: Colors.white,
               body: Center(child: CircularProgressIndicator()));
         }
-        if (userRoomsSnapshot.hasError) {
+        if (idSnapshot.hasError) {
           return const Scaffold(
-            backgroundColor: Colors.white,
-              body: Center(child: Text('Error loading your rooms.')));
+              backgroundColor: Colors.white,
+              body: Center(child: Text('Error loading your room IDs.')));
         }
 
-        final joinedRoomsDocs = userRoomsSnapshot.data?.docs ?? [];
+        final roomIds = idSnapshot.data ?? [];
 
-        if (joinedRoomsDocs.isEmpty) {
-          // User is not in any rooms. Build the UI with an empty list.
-          return _buildScaffold(context, currentUser, pages, []);
-        }
-
-        // 2. Extract the 'roomId' strings from the documents
-        final List<String> roomIds = joinedRoomsDocs
-            .map((doc) {
-              final data = doc.data() as Map<String, dynamic>?;
-              // Check if data is not null AND contains 'roomId'
-              if (data != null && data.containsKey('roomId')) {
-                return data['roomId'] as String?;
-              }
-              return null;
-            })
-            .whereType<String>() // This filters out any nulls
-            .toList();
-
-        if (roomIds.isEmpty) {
-          // User has docs in 'joinedRooms', but no 'roomId' fields.
-          return _buildScaffold(context, currentUser, pages, []);
-        }
-
-        // 3. Inner StreamBuilder: Gets the actual room details from 'rooms' collection
-        return StreamBuilder<QuerySnapshot>(
-          // Use the "whereIn" query to get all rooms in one request
-          stream: FirebaseFirestore.instance
-              .collection('rooms')
-              .where(FieldPath.documentId, whereIn: roomIds)
-              .snapshots(),
+        return StreamBuilder<List<RoomModel>>(
+          stream: firestoreService.rooms.getRoomsStream(roomIds),
           builder: (context, roomSnapshot) {
-            if (roomSnapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()));
-            }
-            if (roomSnapshot.hasError) {
-              return const Scaffold(
-                  body: Center(child: Text('Error loading room details.')));
-            }
+            
+            final rooms = roomSnapshot.data ?? [];
 
-            // THIS IS THE FINAL, CORRECT LIST OF ROOMS
-            final rooms = roomSnapshot.data?.docs ?? [];
-
-            // 4. Build the Scaffold and pass the correct 'rooms' list
-            return _buildScaffold(context, currentUser, pages, rooms);
+            // --- 3. THE FINAL PART OF THE FIX ---
+            // Build the scaffold, but use an IndexedStack for the body
+            return Scaffold(
+              backgroundColor: Colors.white,
+              drawer: UserDrawer(
+                userModel: widget.userModel, 
+                rooms: rooms, // Drawer gets the live-updated room list
+                onSignOut: signout,
+              ),
+              appBar: _selectedIndex == 3
+                  ? null
+                  : AppBar(
+                      backgroundColor: Colors.white,
+                      centerTitle: false,
+                      title: Text(['Home', 'Rooms', 'Notifications', 'Profile'][_selectedIndex]),
+                      leading: Builder(
+                        builder: (context) => IconButton(
+                          icon: const Icon(Icons.menu),
+                          onPressed: () => Scaffold.of(context).openDrawer(),
+                          tooltip: 'Open Menu',
+                        ),
+                      ),
+                    ),
+              // Use an IndexedStack to preserve the state of each tab
+              body: IndexedStack(
+                index: _selectedIndex,
+                children: _pages,
+              ),
+              bottomNavigationBar: BottomNavigationBar(
+                type: BottomNavigationBarType.fixed,
+                currentIndex: _selectedIndex,
+                onTap: _onItemTapped,
+                selectedItemColor: const Color(0xFFA27221),
+                unselectedItemColor: Colors.grey,
+                showUnselectedLabels: true,
+                items: const [
+                  BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+                  BottomNavigationBarItem(icon: Icon(Icons.meeting_room), label: 'Room'),
+                  BottomNavigationBarItem(
+                      icon: Icon(Icons.notifications), label: 'Notifications'),
+                  BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+                ],
+              ),
+            );
+            // --- END OF FIX ---
           },
         );
       },
     );
   }
-
-  // I moved your Scaffold into its own method to keep the build method clean
-  Widget _buildScaffold(
-    BuildContext context,
-    User currentUser,
-    List<Widget> pages,
-    List<QueryDocumentSnapshot> rooms, // <-- The correctly fetched list
-  ) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      drawer: UserDrawer(
-        user: currentUser,
-        rooms: rooms, // <-- Pass the correct list here
-        onSignOut: signout,
-      ),
-      // --- START OF FIX ---
-      appBar: _selectedIndex == 3 // 3 is the index for Profile
-          ? null // Don't show an AppBar for the Profile tab
-          : AppBar( // Show the AppBar for all other tabs
-              backgroundColor: Colors.white,
-              centerTitle: false,
-              title: Text(['Home', 'Rooms', 'Notifications', 'Profile'][_selectedIndex]),
-              leading: Builder(
-                builder: (context) => IconButton(
-                  icon: const Icon(Icons.menu), // ☰ three-line button
-                  onPressed: () => Scaffold.of(context).openDrawer(),
-                  tooltip: 'Open Menu',
-                ),
-              ),
-            ),
-      // --- END OF FIX ---
-      body: pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: const Color(0xFFA27221),
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.meeting_room), label: 'Room'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.notifications), label: 'Notifications'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
-    );
-  } 
 }

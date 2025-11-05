@@ -1,11 +1,19 @@
+import 'package:beehive/core/services/firestore_services.dart';
 import 'package:beehive/features/shared/show_modal.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart'; // <-- 1. NO LONGER NEEDED
+// import 'package:firebase_auth/firebase_auth.dart'; // <-- 2. NO LONGER NEEDED
 import 'dart:math';
 
+// --- 3. ADD IMPORTS ---
+import 'package:provider/provider.dart';
+import 'package:beehive/core/models/user_model.dart';
+import 'package:beehive/core/models/room_model.dart';
+
 class CreateRoom extends StatefulWidget {
-  const CreateRoom({super.key});
+  // --- 4. ACCEPT THE USER MODEL ---
+  final UserModel userModel;
+  const CreateRoom({super.key, required this.userModel});
 
   @override
   State<CreateRoom> createState() => _CreateRoomState();
@@ -21,6 +29,7 @@ class _CreateRoomState extends State<CreateRoom> {
   @override
   Widget build(BuildContext context) {
     return Padding(
+      // ... (Your build method's UI is unchanged) ...
       padding: const EdgeInsets.all(20),
       child: SizedBox(
         width: double.infinity,
@@ -48,8 +57,6 @@ class _CreateRoomState extends State<CreateRoom> {
                   ],
                 ),
               ),
-
-            //can delete
             if (roomCreated)
               const Align(
                 alignment: Alignment.centerLeft,
@@ -68,7 +75,11 @@ class _CreateRoomState extends State<CreateRoom> {
     );
   }
   
-void _showCreateRoomDialog(BuildContext context) {
+  // --- 5. REFACTORED DIALOG METHOD ---
+  void _showCreateRoomDialog(BuildContext context) {
+    // Get the service *before* showing the dialog
+    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true, 
@@ -77,17 +88,17 @@ void _showCreateRoomDialog(BuildContext context) {
         return Padding(
           padding: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.10),
           child: Container(
-            height: MediaQuery.of(context).size.height * 0.75, 
+            // ... (Your container/column/header UI is unchanged) ...
+            height: MediaQuery.of(context).size.height * 0.75,
             decoration: const BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(20), 
-                topRight: Radius.circular(20), 
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
               ),
             ),
             child: Column(
               children: [
-                // Header
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
@@ -110,6 +121,7 @@ void _showCreateRoomDialog(BuildContext context) {
                         ),
                       ),
                       TextButton(
+                        // --- 6. REFACTORED onPressed LOGIC ---
                         onPressed: () async {
                           final className = classNameController.text.trim();
                           final section = sectionController.text.trim();
@@ -125,36 +137,42 @@ void _showCreateRoomDialog(BuildContext context) {
                             );
                             return;
                           }
-                          // Keep existing Firebase logic
-                          final user = FirebaseAuth.instance.currentUser;
-                          if (user == null) {
-                            showMessage(context, "You must be logged in to create a room."); 
-                            return;
-                          }
 
-                          final email = user.email ?? 'unknown';
-                          final uid = user.uid;
+                          // Get user data from the model
+                          final email = widget.userModel.email;
+                          final uid = widget.userModel.uid;
+
+                          // Generate the room details
                           final roomCode = _generateRoomCode(6);
                           final roomLink =
                               "https://beehiveapp.page.link/$roomCode";
 
-                          await FirebaseFirestore.instance
-                              .collection('rooms')
-                              .doc(roomCode)
-                              .set({
-                            'className': className,
-                            'section': section,
-                            'subject': subject,
-                            'roomCode': roomCode,
-                            'roomLink': roomLink,
-                            'createdBy': email,
-                            'creatorId': uid,
-                            'createdAt': FieldValue.serverTimestamp(),
-                          });
+                          // Create the new RoomModel object
+                          final newRoom = RoomModel(
+                            id: roomCode, // The doc ID is the room code
+                            className: className,
+                            section: section,
+                            subject: subject,
+                            roomCode: roomCode,
+                            roomLink: roomLink,
+                            createdBy: email,
+                            creatorId: uid,
+                            // createdAt will be set by the service
+                          );
 
-                          // ignore: use_build_context_synchronously
-                          Navigator.pop(context);
-                          setState(() => roomCreated = true);
+                          try {
+                            // Call the service to create the room
+                            await firestoreService.rooms.createRoom(newRoom);
+                            
+                            if (mounted) {
+                              Navigator.pop(context); // Close the modal
+                              setState(() => roomCreated = true);
+                            }
+                          } catch (e) {
+                             if (mounted) {
+                               showMessage(context, "Failed to create room: $e");
+                             }
+                          }
                         },
                         child: Text(
                           'Create',
@@ -200,10 +218,12 @@ void _showCreateRoomDialog(BuildContext context) {
     );
   }
 
-Widget _buildInputField({
+  // ... (Your _buildInputField and _generateRoomCode methods are unchanged) ...
+  Widget _buildInputField({
     required TextEditingController controller,
     required String label,
   }) {
+    // ...
     return TextField(
       controller: controller,
       decoration: InputDecoration(
@@ -217,17 +237,16 @@ Widget _buildInputField({
           fontSize: 16,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8), // Rounded corners
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
-            color: Colors.grey[400]!, // Light grey border
+            color: Colors.grey[400]!,
             width: 1,
           ),
         ),
-        // Focused border style
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8), // Rounded corners
+          borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(
-            color: Colors.black, // Darker border when focused
+            color: Colors.black,
             width: 1,
           ),
         ),
@@ -247,7 +266,7 @@ Widget _buildInputField({
     );
   }
 
- String _generateRoomCode(int length) {
+  String _generateRoomCode(int length) {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final rand = Random();
     return List.generate(length, (index) => chars[rand.nextInt(chars.length)])

@@ -1,90 +1,73 @@
+import 'package:beehive/core/models/module_model.dart';
+import 'package:beehive/core/models/user_model.dart';
+import 'package:beehive/core/models/room_model.dart';
+import 'package:beehive/core/services/firestore_services.dart';
 import 'package:beehive/utils/hexagonal.dart';
 import 'package:beehive/features/students/join_room.dart';
-import 'package:beehive/features/students/modules/view_lesson.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 
 class StudentRoomPage extends StatefulWidget {
   final void Function(String roomId, String moduleId)? onModuleSelected;
+  
+  // It MUST accept the userModel from StudentHomePage
+  final UserModel userModel; 
 
-  const StudentRoomPage({super.key, this.onModuleSelected});
+  const StudentRoomPage({
+    super.key,
+    this.onModuleSelected,
+    required this.userModel, // It is required
+  });
 
   @override
   State<StudentRoomPage> createState() => _StudentRoomPageState();
 }
 
 class _StudentRoomPageState extends State<StudentRoomPage> {
-  final user = FirebaseAuth.instance.currentUser;
-  int _selectedIndex = 0; // Controls FAB visibility
   
   @override
   Widget build(BuildContext context) {
+    // Get the service once
+    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+
     return Scaffold(
       backgroundColor: Colors.white,
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(user!.uid)
-            .collection('joinedRooms')
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      // This body is now refactored to use efficient streams
+      body: StreamBuilder<List<String>>(
+        // 1. Get the list of joined room IDs
+        stream: firestoreService.users.getJoinedRoomIdsStream(widget.userModel.uid),
+        builder: (context, idSnapshot) {
+          if (idSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          if (!idSnapshot.hasData || idSnapshot.data!.isEmpty) {
             return const Center(child: Text('No rooms joined yet.'));
           }
 
-          final joinedRooms = snapshot.data!.docs;
+          final roomIds = idSnapshot.data!;
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: joinedRooms.length,
-            itemBuilder: (context, index) {
-              final roomId = joinedRooms[index]['roomId'];
+          // 2. Get the list of RoomModel objects from the IDs
+          return StreamBuilder<List<RoomModel>>(
+            stream: firestoreService.rooms.getRoomsStream(roomIds),
+            builder: (context, roomSnapshot) {
+              if (!roomSnapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('rooms')
-                    .doc(roomId)
-                    .get(),
-                builder: (context, roomSnapshot) {
-                  if (!roomSnapshot.hasData || !roomSnapshot.data!.exists) {
-                    return const SizedBox();
-                  }
+              final rooms = roomSnapshot.data!;
 
-                  final room = roomSnapshot.data!;
-                  final className = room['className'] ?? 'No Name';
-                  final subject = room['subject'] ?? 'No Subject';
-                  final profUid = room['creatorId'];
-
-                  return FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(profUid)
-                        .get(),
-                    builder: (context, profSnapshot) {
-                      String profName = 'Unknown Professor';
-                      if (profSnapshot.hasData && profSnapshot.data!.exists) {
-                        final userData =
-                            profSnapshot.data!.data() as Map<String, dynamic>?;
-                        final firstName = userData?['firstName'] ?? '';
-                        final lastName = userData?['lastName'] ?? '';
-                        if (firstName.isNotEmpty || lastName.isNotEmpty) {
-                          profName = '$firstName $lastName'.trim();
-                        }
-                      }
-
-                      return RoomExpansionCard(
-                            className: className,
-                            subject: subject,
-                            profName: profName,
-                            roomId: roomId,
-                            onModuleSelected: widget.onModuleSelected,
-                          );
-                    },
+              // 3. Build the list using the clean List<RoomModel>
+              return ListView.builder(
+                padding: const EdgeInsets.all(8),
+                itemCount: rooms.length,
+                itemBuilder: (context, index) {
+                  final room = rooms[index];
+                  
+                  // 4. Pass the full, clean models to the card
+                  return RoomExpansionCard(
+                    room: room,
+                    userModel: widget.userModel,
+                    onModuleSelected: widget.onModuleSelected,
                   );
                 },
               );
@@ -92,41 +75,39 @@ class _StudentRoomPageState extends State<StudentRoomPage> {
           );
         },
       ),
-      floatingActionButton: _selectedIndex == 0
-    ? HexFloatingButton(
+      floatingActionButton: HexFloatingButton(
         size: 70,
         color: Colors.blue,
         child: const Icon(Icons.add, color: Colors.white),
         onPressed: () {
           showDialog(
             context: context,
-            barrierColor: Colors.black54, // darken the background
+            barrierColor: Colors.black54,
             builder: (context) => Dialog(
-              backgroundColor: Colors.transparent, // make dialog transparent
+              backgroundColor: Colors.transparent,
               insetPadding: const EdgeInsets.all(16),
-              child: JoinRoomDialog(), 
+              // Pass the userModel to the dialog
+              child: JoinRoomDialog(userModel: widget.userModel),
             ),
           );
         },
-      )
-    : null,
+      ),
     );
   }
 }
 
+//
+// REFACTORED RoomExpansionCard
+//
 class RoomExpansionCard extends StatefulWidget {
-  final String className;
-  final String subject;
-  final String profName;
-  final String roomId;
+  final RoomModel room;
+  final UserModel userModel;
   final Function(String, String)? onModuleSelected;
 
   const RoomExpansionCard({
     Key? key,
-    required this.className,
-    required this.subject,
-    required this.profName,
-    required this.roomId,
+    required this.room,
+    required this.userModel,
     this.onModuleSelected,
   }) : super(key: key);
 
@@ -135,7 +116,6 @@ class RoomExpansionCard extends StatefulWidget {
 }
 
 class _RoomExpansionCardState extends State<RoomExpansionCard> {
-  // This state is now stored INSIDE each card, not on the main page
   bool _isExpanded = false;
 
   @override
@@ -146,79 +126,92 @@ class _RoomExpansionCardState extends State<RoomExpansionCard> {
         borderRadius: BorderRadius.circular(12),
       ),
       elevation: 3,
-      clipBehavior: Clip.antiAlias, // This is CRITICAL for rounded corners
-      child: Column( // The root widget is now a Column
+      clipBehavior: Clip.antiAlias,
+      child: Column(
         children: [
-          // 1. HEADER (Your original InkWell, wrapped in the gradient)
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFA0701F), Color(0xFFE8A319)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: InkWell(
-              splashColor: Colors.white24,
-              onTap: () {
-                setState(() {
-                  _isExpanded = !_isExpanded;
-                });
-              },
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.className,
-                            style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white),
-                          ),
-                          Text(
-                            widget.subject,
-                            style: const TextStyle(color: Colors.white,fontSize: 13,),
-                          ),
-                          SizedBox(height: 20,),
-                          Text(
-                            widget.profName,
-                            style: const TextStyle(color: Colors.white,fontSize: 12,),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16.0, top: 2.0),
-                      child: Icon(
-                        _isExpanded ? Icons.expand_less : Icons.expand_more,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
+          // 1. HEADER (Fetches professor's name cleanly)
+          FutureBuilder<UserModel?>(
+            future: Provider.of<FirestoreService>(context, listen: false)
+                .users
+                .getUser(widget.room.creatorId),
+            builder: (context, profSnapshot) {
+              String profName = 'Unknown Professor';
+              if (profSnapshot.connectionState == ConnectionState.done &&
+                  profSnapshot.hasData &&
+                  profSnapshot.data != null) {
+                profName = profSnapshot.data!.fullName;
+              }
+
+              return Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFA0701F), Color(0xFFE8A319)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                 ),
-              ),
-            ),
+                child: InkWell(
+                  splashColor: Colors.white24,
+                  onTap: () {
+                    setState(() {
+                      _isExpanded = !_isExpanded;
+                    });
+                  },
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.room.className,
+                                style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white),
+                              ),
+                              Text(
+                                widget.room.subject,
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 13),
+                              ),
+                              SizedBox(height: 20),
+                              Text(
+                                profName,
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16.0, top: 2.0),
+                          child: Icon(
+                            _isExpanded ? Icons.expand_less : Icons.expand_more,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
 
-          // 2. BODY (This animates in the new background color)
+          // 2. BODY (The animated expandable part)
           AnimatedCrossFade(
-            firstChild: Container(), // Empty when collapsed
-            // Wrap the children in a new colored Container
+            firstChild: Container(),
             secondChild: Container(
-              // --- I REMOVED THE 'width' PROPERTY ---
-              color: const Color.fromARGB(255, 255, 206, 109), 
+              color: const Color.fromARGB(255, 255, 206, 109),
               child: _buildExpandableChildren(),
             ),
-            crossFadeState: _isExpanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
+            crossFadeState:
+                _isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
             duration: const Duration(milliseconds: 300),
           ),
         ],
@@ -226,97 +219,80 @@ class _RoomExpansionCardState extends State<RoomExpansionCard> {
     );
   }
 
+  // 10. REFACTORED Expandable Children
   Widget _buildExpandableChildren() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(widget.roomId)
-          .collection('modules')
-          .snapshots(),
-      builder: (context, moduleRefSnapshot) {
-        if (!moduleRefSnapshot.hasData ||
-            moduleRefSnapshot.data!.docs.isEmpty) {
+    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+
+    // 1. Stream the linked module IDs
+    return StreamBuilder<List<String>>(
+      stream: firestoreService.modules.getLinkedModuleIdsStream(widget.room.id),
+      builder: (context, idSnapshot) {
+        if (idSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+              child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(color: Colors.black54)));
+        }
+        if (!idSnapshot.hasData || idSnapshot.data!.isEmpty) {
           return const Padding(
             padding: EdgeInsets.all(16.0),
-            child: Text(
-              'No modules linked yet.',
-              style: TextStyle(color: Colors.black87), // Dark text
-            ),
+            child:
+                Text('No modules linked yet.', style: TextStyle(color: Colors.black87)),
           );
         }
 
-        final linkedModules = moduleRefSnapshot.data!.docs;
+        final moduleIds = idSnapshot.data!;
 
-        return FutureBuilder<QuerySnapshot>(
-          future: FirebaseFirestore.instance.collection('modules').get(),
-          builder: (context, globalModulesSnapshot) {
-            if (!globalModulesSnapshot.hasData) {
+        // 2. Stream the ModuleModel objects from the IDs
+        return StreamBuilder<List<ModuleModel>>(
+          stream: firestoreService.modules.getModulesByIdsStream(moduleIds),
+          builder: (context, moduleSnapshot) {
+            if (!moduleSnapshot.hasData) {
               return const Center(
                   child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: CircularProgressIndicator(
-                  color: Colors.black54, // Dark indicator
-                ),
-              ));
+                      padding: EdgeInsets.all(16.0),
+                      child: CircularProgressIndicator(color: Colors.black54)));
             }
 
-            final globalModules = globalModulesSnapshot.data!.docs;
+            final modules = moduleSnapshot.data!;
 
-            final filteredModules = globalModules
-                .where((gm) => linkedModules.any((lm) => lm.id == gm.id))
-                .toList();
-
-            // Add padding to this Column
+            // 3. Build the list of modules
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),  
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Column(
-                children: filteredModules.map((mod) {
-                  final title = mod['title'] ?? 'Untitled';
-                  final moduleId = mod.id;
-              
-                  // --- START: This is the style you wanted ---
+                children: modules.map((mod) {
                   return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+                    margin: const EdgeInsets.symmetric(
+                        vertical: 4.0, horizontal: 8.0),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                        borderRadius: BorderRadius.circular(8)),
                     color: Colors.white,
                     child: ListTile(
-                      // Removed contentPadding: EdgeInsets.zero
-                      
                       title: Center(
-                        child: Text( 
-                          title,
+                        child: Text(
+                          mod.title,
                           style: const TextStyle(
                             fontWeight: FontWeight.w500,
-                            color: Colors.black, fontSize: 12,
-                          
+                            color: Colors.black,
+                            fontSize: 12,
                           ),
                         ),
                       ),
                       onTap: () async {
-                        final currentUser =
-                            FirebaseAuth.instance.currentUser;
-              
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(currentUser!.uid)
-                            .collection('recent')
-                            .doc('lastOpened')
-                            .set({
-                          'roomId': widget.roomId,
-                          'moduleId': moduleId,
-                          'title': title,
-                          'timestamp': FieldValue.serverTimestamp(),
-                        });
-              
+                        // 4. Call the service to set the recent module
+                        await firestoreService.users.setRecentModule(
+                          widget.userModel.uid,
+                          widget.room.id,
+                          mod.id,
+                          mod.title,
+                        );
+
                         if (widget.onModuleSelected != null) {
-                          widget.onModuleSelected!(widget.roomId, moduleId);
+                          widget.onModuleSelected!(widget.room.id, mod.id);
                         }
                       },
                     ),
                   );
-                  // --- END: This is the style you wanted ---
                 }).toList(),
               ),
             );

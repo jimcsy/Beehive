@@ -58,7 +58,7 @@ class GoogleSignInProvider extends ChangeNotifier {
       final user = userCredential.user;
 
       // --- 3. REFACTORED: CHECK IF USER EXISTS VIA SERVICE ---
-      final existingUser = await firestoreService.getUser(user!.uid);
+      final existingUser = await firestoreService.users.getUser(user!.uid);
       
       Navigator.pop(context); // close loader
 
@@ -88,7 +88,7 @@ class GoogleSignInProvider extends ChangeNotifier {
         );
         
         // Save user to Firestore using the service
-        await firestoreService.createUser(newUserModel);
+        await firestoreService.users.createUser(newUserModel);
 
         // --- 5. REFACTORED: NAVIGATE AND PASS THE MODEL ---
         if (selectedRole == 'student') {

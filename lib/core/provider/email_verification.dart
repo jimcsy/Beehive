@@ -96,7 +96,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
           Provider.of<FirestoreService>(context, listen: false);
 
       // Get the clean user model
-      final userModel = await firestoreService.getUser(uid);
+      final userModel = await firestoreService.users.getUser(uid);
 
       if (userModel == null) {
         if (!mounted) return;

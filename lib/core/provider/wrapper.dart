@@ -1,5 +1,4 @@
-// lib/core/screens/wrapper.dart
-
+import 'package:beehive/core/models/user_model.dart';
 import 'package:beehive/core/provider/email_verification.dart';
 import 'package:beehive/core/provider/loader.dart';
 import 'package:beehive/core/services/firestore_services.dart';
@@ -9,9 +8,6 @@ import 'package:beehive/core/screens/landing_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-
-// --- 1. IMPORT YOUR SERVICES AND MODELS ---
-import 'package:beehive/core/models/user_model.dart';
 
 class Wrapper extends StatefulWidget {
   const Wrapper({Key? key}) : super(key: key);
@@ -39,42 +35,45 @@ class _WrapperState extends State<Wrapper> {
             // Check if email is verified
             if (user.emailVerified) {
               // --- 2. THIS IS THE REFACTORED PART ---
-              // Instead of a FutureBuilder for Firestore, we use one for our service
               return FutureBuilder<UserModel?>(
-                // Get the FirestoreService from Provider and call getUser
                 future: Provider.of<FirestoreService>(context, listen: false)
+                    .users
                     .getUser(user.uid),
-
                 builder: (context, userModelSnapshot) {
-                  if (userModelSnapshot.connectionState == ConnectionState.waiting) {
+                  // 1. Still loading
+                  if (userModelSnapshot.connectionState ==
+                      ConnectionState.waiting) {
                     return const CustomLoader();
                   }
 
-                  // Get the clean userModel object from the snapshot
-                  final userModel = userModelSnapshot.data;
-
-                  if (userModel != null) {
-                    // --- 3. USE THE CLEAN MODEL ---
-                    if (userModel.role == 'teacher') {
-                      return TeacherHomePage(userModel: userModel);
-                    } else if (userModel.role == 'student') {
-                      return StudentHomePage(userModel: userModel);
-                    } else {
-                      // Role not found or invalid
-                      return _buildErrorScreen(
-                        'Role not found. Please contact admin.',
-                      );
-                    }
-                  } else {
-                    // User document not found in Firestore
+                  // --- 2. THIS IS THE FIX: CATCH ERRORS ---
+                  if (userModelSnapshot.hasError) {
                     return _buildErrorScreen(
-                      'User record not found.',
+                      'Error loading user: ${userModelSnapshot.error}',
+                    );
+                  }
+
+                  // 3. Got data, but it's null (user doc not found)
+                  final userModel = userModelSnapshot.data;
+                  if (userModel == null) {
+                    return _buildErrorScreen(
+                      'User record not found. Please contact admin.',
+                    );
+                  }
+
+                  // 4. Success! We have a user.
+                  if (userModel.role == 'teacher') {
+                    return TeacherHomePage(userModel: userModel);
+                  } else if (userModel.role == 'student') {
+                    return StudentHomePage(userModel: userModel);
+                  } else {
+                    return _buildErrorScreen(
+                      'Role not found. Please contact admin.',
                     );
                   }
                 },
               );
               // --- END OF REFACTORED PART ---
-
             } else {
               // Redirect to email verification page
               return EmailVerificationPage(user: user);
@@ -92,27 +91,27 @@ class _WrapperState extends State<Wrapper> {
 
   // Helper widget to keep the build method clean
   Widget _buildErrorScreen(String message) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              style: const TextStyle(fontSize: 18),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () async {
-                await FirebaseAuth.instance.signOut();
-              },
-              child: const Text('Sign Out'),
-            ),
-          ],
-        ),
+    // --- 3. THIS IS THE FIX: REMOVED THE SCAFFOLD ---
+    return Center(
+      // --- END OF FIX ---
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error, size: 64, color: Colors.red),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: const TextStyle(fontSize: 18),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+            },
+            child: const Text('Sign Out'),
+          ),
+        ],
       ),
     );
   }

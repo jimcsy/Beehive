@@ -1,6 +1,10 @@
+import 'package:beehive/core/services/firestore_services.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart'; // <-- 1. NO LONGER NEEDED
 import '../shared/show_modal.dart';
+
+// --- 2. ADD IMPORTS ---
+import 'package:provider/provider.dart';
 
 class InsertModule extends StatefulWidget {
   final String roomCode;
@@ -21,79 +25,67 @@ class InsertModule extends StatefulWidget {
 class _InsertModuleState extends State<InsertModule> {
   bool _isSaving = false;
   String? _roomName;
+  bool _isRoomNameLoading = true; // For loading the room name
+
+  // --- 3. STORE THE SERVICE ---
+  late FirestoreService _firestoreService;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get the service here (it's safer than initState)
+    _firestoreService = Provider.of<FirestoreService>(context, listen: false);
     _fetchRoomName();
   }
 
+  // --- 4. REFACTORED: Uses the service ---
   Future<void> _fetchRoomName() async {
     try {
-      final roomDoc = await FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(widget.roomCode)
-          .get();
-
-      setState(() {
-        _roomName = roomDoc.exists ? roomDoc['className'] ?? 'this room' : 'this room';
-      });
+      final roomDoc = await _firestoreService.rooms.getRoom(widget.roomCode);
+      if (mounted) {
+        setState(() {
+          _roomName = roomDoc != null ? roomDoc.className : 'this room';
+          _isRoomNameLoading = false;
+        });
+      }
     } catch (_) {
-      setState(() => _roomName = 'this room');
+      if (mounted) {
+        setState(() {
+          _roomName = 'this room';
+          _isRoomNameLoading = false;
+        });
+      }
     }
   }
 
-  Future<DocumentSnapshot?> _getGlobalModule() async {
-    final query = await FirebaseFirestore.instance
-        .collection('modules')
-        .where('title', isEqualTo: widget.moduleTitle)
-        .limit(1)
-        .get();
-    return query.docs.isNotEmpty ? query.docs.first : null;
-  }
+  // --- 5. DELETED: _getGlobalModule() ---
+  // --- 6. DELETED: _moduleAlreadyInRoom() ---
 
-  Future<bool> _moduleAlreadyInRoom(String moduleId) async {
-    final doc = await FirebaseFirestore.instance
-        .collection('rooms')
-        .doc(widget.roomCode)
-        .collection('modules')
-        .doc(moduleId)
-        .get();
-    return doc.exists;
-  }
-
+  // --- 7. REFACTORED: _linkModule ---
   Future<void> _linkModule(BuildContext context) async {
     setState(() => _isSaving = true);
 
     try {
-      final globalModule = await _getGlobalModule();
+      // 1. Get the global module by its title
+      final globalModule =
+          await _firestoreService.modules.getGlobalModuleByTitle(widget.moduleTitle);
+
       if (globalModule == null) {
         showMessage(context, "❌ Global module not found.");
         return;
       }
 
-      final globalModuleId = globalModule.id;
-      final already = await _moduleAlreadyInRoom(globalModuleId);
+      // 2. Check if it's already linked
+      final alreadyLinked = await _firestoreService.modules.isModuleLinked(
+          widget.roomCode, globalModule.id);
 
-      if (already) {
-        showMessage(context, "${widget.moduleTitle} already linked.");
+      if (alreadyLinked) {
+        showMessage(context, "${widget.moduleTitle} is already linked.");
         return;
       }
 
-      await FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(widget.roomCode)
-          .collection('modules')
-          .doc(globalModuleId)
-          .set({
-        'title': globalModule['title'],
-        'description': globalModule['description'],
-        'globalRef': FirebaseFirestore.instance
-            .collection('modules')
-            .doc(globalModuleId)
-            .path,
-        'linkedAt': FieldValue.serverTimestamp(),
-      });
+      // 3. Link the module
+      await _firestoreService.modules.linkModuleToRoom(widget.roomCode, globalModule);
 
       showMessage(context, "${widget.moduleTitle} linked to $_roomName!");
 
@@ -103,8 +95,6 @@ class _InsertModuleState extends State<InsertModule> {
       if (mounted) setState(() => _isSaving = false);
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +106,10 @@ class _InsertModuleState extends State<InsertModule> {
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
       ),
       content: Text(
-        'Do you want to link "${widget.moduleTitle}" to "${_roomName ?? 'this room'}"?',
+        // 8. --- Added a loading check for the room name ---
+        _isRoomNameLoading
+            ? 'Loading...'
+            : 'Do you want to link "${widget.moduleTitle}" to "${_roomName ?? 'this room'}"?',
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 12),
       ),
@@ -142,7 +135,10 @@ class _InsertModuleState extends State<InsertModule> {
             const SizedBox(width: 10),
             Expanded(
               child: ElevatedButton(
-                onPressed: () => _linkModule(context),
+                // 9. --- Disable button while loading room name OR saving ---
+                onPressed: (_isSaving || _isRoomNameLoading)
+                    ? null 
+                    : () => _linkModule(context),
                 style: ButtonStyle(
                   backgroundColor: MaterialStateProperty.all(
                       const Color.fromARGB(255, 235, 200, 95)),

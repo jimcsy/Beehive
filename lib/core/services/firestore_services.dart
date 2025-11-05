@@ -1,44 +1,24 @@
-// lib/core/services/firestore_service.dart
-
-import 'package:beehive/core/models/user_model.dart';
+import 'package:beehive/core/services/module_repository.dart';
+import 'package:beehive/core/services/room_repository.dart';
+import 'package:beehive/core/services/user_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+
+// --- This is your new, clean service class! ---
+
 class FirestoreService {
-  // Create a private instance of Firestore
+  // 1. Still the single source of truth for the _db instance
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // This is the function we moved from your widget!
-  Future<UserModel?> getUser(String uid) async {
-    try {
-      final doc = await _db
-          .collection('users')
-          .doc(uid)
-          .get();
+  // 2. Public properties for each repository
+  late final UserRepository users;
+  late final RoomRepository rooms;
+  late final ModuleRepository modules;
 
-      if (doc.exists) {
-        return UserModel.fromFirestore(doc);
-      }
-    } catch (e) {
-      print('Error fetching user: $e'); // Use a real logger in production
-    }
-    return null;
-  }
-
-  // Creates a new user document in Firestore
-  Future<void> createUser(UserModel user) async {
-    try {
-      // Get the Map from the model's toJson method
-      final userMap = user.toJson();
-      
-      // Add the server timestamp here, NOT in the model
-      userMap['createdAt'] = FieldValue.serverTimestamp(); 
-      
-      // Set the document
-      await _db.collection('users').doc(user.uid).set(userMap);
-    } catch (e) {
-      print('Error creating user: $e');
-      // Re-throw the error to be handled by the UI
-      rethrow;
-    }
+  // 3. The constructor creates the repositories, passing the db instance
+  FirestoreService() {
+    users = UserRepository(_db);
+    rooms = RoomRepository(_db);
+    modules = ModuleRepository(_db);
   }
 }
