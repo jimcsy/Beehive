@@ -1,3 +1,5 @@
+import 'package:beehive/debug/add_module_debug.dart';
+import 'package:beehive/debug/reading.dart';
 import 'package:beehive/python_ide/ide_test_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -170,12 +172,12 @@ class UserDrawer extends StatelessWidget {
                     leading: const Icon(Icons.terminal),
                     title: const Text('Swarm', style: TextStyle(fontSize: 14)),
                     onTap: () {
-                      _navigateTo(context, const IdeTestScreen());
+                      _navigateTo(context, const IdeScreen());
                     },
                   ),
                   ListTile(
                     leading: const Icon(Icons.settings_outlined),
-                    title: const Text('Settings', style: TextStyle(fontSize: 14)),
+                    title: const Text('Add Module', style: TextStyle(fontSize: 14)),
                     onTap: () {
                       _navigateTo(context, const TSettingsPage());
                     },

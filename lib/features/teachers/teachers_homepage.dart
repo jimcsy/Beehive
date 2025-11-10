@@ -7,7 +7,6 @@ import 'package:beehive/features/teachers/notify_students.dart'; // We assume th
 import 'package:beehive/features/teachers/rooms/view_room.dart';
 import 'package:beehive/features/teachers/module_page.dart';
 import 'package:beehive/features/shared/drawer.dart';
-import 'package:beehive/features/shared/show_modal.dart';
 import 'package:beehive/core/provider/login.dart';
 import 'package:flutter/material.dart';
 // import 'package:firebase_auth/firebase_auth.dart'; // <-- No longer needed

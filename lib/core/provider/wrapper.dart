@@ -35,44 +35,45 @@ class _WrapperState extends State<Wrapper> {
             // Check if email is verified
             if (user.emailVerified) {
               // --- 2. THIS IS THE REFACTORED PART ---
-              return FutureBuilder<UserModel?>(
-                future: Provider.of<FirestoreService>(context, listen: false)
-                    .users
-                    .getUser(user.uid),
-                builder: (context, userModelSnapshot) {
-                  // 1. Still loading
-                  if (userModelSnapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const CustomLoader();
-                  }
+              return StreamBuilder<UserModel?>(
+            // Get the FirestoreService and call the NEW stream function
+            stream: Provider.of<FirestoreService>(context, listen: false)
+                .users
+                .getUserStream(user.uid),
 
-                  // --- 2. THIS IS THE FIX: CATCH ERRORS ---
-                  if (userModelSnapshot.hasError) {
-                    return _buildErrorScreen(
-                      'Error loading user: ${userModelSnapshot.error}',
-                    );
-                  }
+            builder: (context, userModelSnapshot) {
+              // 1. Still loading
+              if (userModelSnapshot.connectionState == ConnectionState.waiting) {
+                return const CustomLoader();
+              }
 
-                  // 3. Got data, but it's null (user doc not found)
-                  final userModel = userModelSnapshot.data;
-                  if (userModel == null) {
-                    return _buildErrorScreen(
-                      'User record not found. Please contact admin.',
-                    );
-                  }
+              // 2. Handle any errors from the stream
+              if (userModelSnapshot.hasError) {
+                return _buildErrorScreen(
+                  'Error loading user: ${userModelSnapshot.error}',
+                );
+              }
 
-                  // 4. Success! We have a user.
-                  if (userModel.role == 'teacher') {
-                    return TeacherHomePage(userModel: userModel);
-                  } else if (userModel.role == 'student') {
-                    return StudentHomePage(userModel: userModel);
-                  } else {
-                    return _buildErrorScreen(
-                      'Role not found. Please contact admin.',
-                    );
-                  }
-                },
-              );
+              // 3. Got data, but it's null (user doc not found)
+              final userModel = userModelSnapshot.data;
+              if (userModel == null) {
+                return _buildErrorScreen(
+                  'User record not found. Please contact admin.',
+                );
+              }
+
+              // 4. Success! We have a user.
+              if (userModel.role == 'teacher') {
+                return TeacherHomePage(userModel: userModel);
+              } else if (userModel.role == 'student') {
+                return StudentHomePage(userModel: userModel);
+              } else {
+                return _buildErrorScreen(
+                  'Role not found. Please contact admin.',
+                );
+              }
+            },
+          );
               // --- END OF REFACTORED PART ---
             } else {
               // Redirect to email verification page

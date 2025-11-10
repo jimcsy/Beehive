@@ -44,6 +44,7 @@ android {
     }
 
     packagingOptions {
+    doNotStrip.add("**/libpythonsitepackages.so")
     doNotStrip.add("**/libpythonbundle.so") // <--- This is CORRECT
 }
 }

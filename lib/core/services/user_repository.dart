@@ -19,6 +19,17 @@ class UserRepository {
     return null;
   }
 
+  Stream<UserModel?> getUserStream(String uid) {
+    return _db.collection('users').doc(uid).snapshots().map((doc) {
+      if (doc.exists) {
+        // Convert the Firestore doc into a UserModel
+        return UserModel.fromFirestore(doc);
+      }
+      // Return null if the user document is deleted
+      return null;
+    });
+  }
+
   Future<void> createUser(UserModel user) async {
     try {
       final userMap = user.toJson();

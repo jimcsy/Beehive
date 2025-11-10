@@ -1,6 +1,7 @@
 import 'package:beehive/core/services/google_auth_services.dart';
 import 'package:beehive/core/provider/wrapper.dart';
 import 'package:beehive/core/services/firestore_services.dart';
+import 'package:beehive/debug/add_module_debug.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
