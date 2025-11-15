@@ -206,7 +206,7 @@ class ViewUnitsLayout extends StatelessWidget {
             borderRadius: BorderRadius.all(Radius.circular(16)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black12,
+                color: Colors.black12, 
                 blurRadius: 10,
                 spreadRadius: 2,
               ),

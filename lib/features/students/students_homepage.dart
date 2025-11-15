@@ -8,6 +8,7 @@ import 'package:beehive/core/provider/loader.dart';
 import 'package:beehive/core/provider/login.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:beehive/core/services/google_auth_services.dart';
 import 'package:beehive/core/models/user_model.dart';
@@ -42,7 +43,13 @@ class StudentHomePageState extends State<StudentHomePage> {
   // Helper function to build the home tab
   Widget _buildHomeTab() {
     if (_recentRoomId != null && _recentModuleId != null) {
-      return ViewUnitsTab(roomId: _recentRoomId!, moduleId: _recentModuleId!);
+      // Use FirebaseAuth if available, otherwise fall back to the userModel UID
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? widget.userModel.uid;
+      return ViewUnitsTab(
+        roomId: _recentRoomId!,
+        moduleId: _recentModuleId!,
+        userId: uid,
+      );
     } else {
       // Return a placeholder or loading, this will be rebuilt
       // when _loadRecentModule() completes and calls setState.
