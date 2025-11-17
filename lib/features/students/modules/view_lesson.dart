@@ -1,17 +1,20 @@
+import 'package:beehive/features/students/modules/supabase_reading_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:beehive/design/hexagonal.dart'; // Uses your HexClipper
+import 'package:beehive/utils/hexagonal.dart'; // Uses your HexClipper
 
 // --- 1. DATA & STATE LOGIC ---
 
 class ViewUnitsTab extends StatefulWidget {
   final String roomId;
   final String moduleId;
-
+  final String userId; // 👈 --- ADDED: Required for progress
+  
   const ViewUnitsTab({
     super.key,
     required this.roomId,
     required this.moduleId,
+    required this.userId, // 👈 --- ADDED: Required for progress
   });
 
   @override
@@ -25,6 +28,14 @@ class _ViewUnitsTabState extends State<ViewUnitsTab> {
   Widget build(BuildContext context) {
     final moduleRef =
         FirebaseFirestore.instance.collection('modules').doc(widget.moduleId);
+
+    // 👈 --- NEW: REFERENCE TO USER'S PROGRESS DOC ---
+    // Path: users/{userId}/progress/{moduleId}
+    final progressRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .collection('progress')
+        .doc(widget.moduleId);
 
     return FutureBuilder<DocumentSnapshot>(
       future: moduleRef.get(),
@@ -42,53 +53,82 @@ class _ViewUnitsTabState extends State<ViewUnitsTab> {
         final moduleData =
             moduleSnapshot.data!.data() as Map<String, dynamic>? ?? {};
         final moduleTitle = moduleData['title'] ?? 'Untitled Module';
+        final lessonsRef = moduleRef.collection('lessons');
 
-        // Fetch lessons. Assumes you have an 'orderIndex' (Number) field.
-        // This is CRUCIAL for correct positioning.
-        final lessonsRef = moduleRef.collection('lessons'); 
-
-        return StreamBuilder<QuerySnapshot>(
-          stream: lessonsRef.snapshots(),
-          builder: (context, lessonSnapshot) {
-            if (lessonSnapshot.connectionState == ConnectionState.waiting) {
+        // 👈 --- NEW: WRAP WITH PROGRESS STREAMBUILDER ---
+        // This stream gets the user's progress map, e.g., {"M01-L01": true, ...}
+        return StreamBuilder<DocumentSnapshot>(
+          stream: progressRef.snapshots(),
+          builder: (context, progressSnapshot) {
+            if (progressSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (lessonSnapshot.hasError) {
-              return Center(child: Text('Error: ${lessonSnapshot.error}'));
+            if (progressSnapshot.hasError) {
+              return Center(
+                  child: Text("Progress Error: ${progressSnapshot.error}"));
             }
-            if (lessonSnapshot.data!.docs.isEmpty) {
+            if (!progressSnapshot.hasData || !progressSnapshot.data!.exists) {
+              // This can happen if the progress doc wasn't created yet.
               return const Center(
-                  child: Text('No lessons found for this module.'));
+                  child: Text('Could not find user progress.'));
             }
 
-            final lessons = lessonSnapshot.data!.docs;
+            // This is the map of lesson IDs to their completion status
+            final progressData =
+                progressSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+            final Map<String, dynamic> lessonProgressMap =
+                (progressData['lessons'] as Map<String, dynamic>?) ?? {};
 
-            // Ensure selectedIndex is within bounds after data load
-            if (_selectedIndex >= lessons.length) {
-              _selectedIndex = 0;
-            }
-            
-            final selectedLesson = lessons[_selectedIndex];
-            final selectedLessonData =
-                selectedLesson.data() as Map<String, dynamic>? ?? {};
-            
-            // The "Unit 1" title
-            final unitTitle = "Unit ${selectedLessonData['orderIndex'] ?? _selectedIndex + 1}";
-            // The "Introduction to Python" title
-            final lessonTitle = selectedLessonData['title'] ?? 'Lesson';
+            // This is your original StreamBuilder for lessons
+            return StreamBuilder<QuerySnapshot>(
+              stream: lessonsRef.snapshots(),
+              builder: (context, lessonSnapshot) {
+                if (lessonSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (lessonSnapshot.hasError) {
+                  return Center(
+                      child: Text('Lesson Error: ${lessonSnapshot.error}'));
+                }
+                if (lessonSnapshot.data!.docs.isEmpty) {
+                  return const Center(
+                      child: Text('No lessons found for this module.'));
+                }
 
-            // Pass all the extracted data to the layout widget
-            return ViewUnitsLayout(
-              moduleTitle: moduleTitle,
-              unitTitle: unitTitle,
-              lessonTitle: lessonTitle,
-              lessons: lessons,
-              selectedIndex: _selectedIndex,
-              onLessonTap: (index) {
-                // This callback updates the state
-                setState(() {
-                  _selectedIndex = index;
-                });
+                // --- 👈 NEW: SORT THE LESSONS ---
+                // This is CRITICAL to make sure "Lesson 1" comes before "Lesson 2"
+                final lessons = lessonSnapshot.data!.docs;
+                lessons.sort((a, b) =>
+                    a.id.compareTo(b.id)); // Sorts by ID (e.g., M01-L01)
+
+                if (_selectedIndex >= lessons.length) {
+                  _selectedIndex = 0;
+                }
+
+                final selectedLesson = lessons[_selectedIndex];
+                final selectedLessonData =
+                    selectedLesson.data() as Map<String, dynamic>? ?? {};
+
+                final unitTitle =
+                    "Unit ${selectedLessonData['orderIndex'] ?? _selectedIndex + 1}";
+                final lessonTitle = selectedLessonData['title'] ?? 'Lesson';
+
+                // Pass all the extracted data to the layout widget
+                return ViewUnitsLayout(
+                  moduleTitle: moduleTitle,
+                  unitTitle: unitTitle,
+                  lessonTitle: lessonTitle,
+                  lessons: lessons,
+                  selectedIndex: _selectedIndex,
+                  lessonProgressMap:
+                      lessonProgressMap, // 👈 --- PASS PROGRESS MAP DOWN
+                  onLessonTap: (index) {
+                    // This callback updates the state
+                    setState(() {
+                      _selectedIndex = index;
+                    });
+                  },
+                );
               },
             );
           },
@@ -107,6 +147,7 @@ class ViewUnitsLayout extends StatelessWidget {
   final List<DocumentSnapshot> lessons;
   final int selectedIndex;
   final ValueChanged<int> onLessonTap; // Callback function
+  final Map<String, dynamic> lessonProgressMap; // 👈 --- ADDED: Progress data
 
   const ViewUnitsLayout({
     Key? key,
@@ -116,6 +157,7 @@ class ViewUnitsLayout extends StatelessWidget {
     required this.lessons,
     required this.selectedIndex,
     required this.onLessonTap,
+    required this.lessonProgressMap, // 👈 --- ADDED: Progress data
   }) : super(key: key);
 
   // Helper function to get an icon based on category
@@ -138,26 +180,58 @@ class ViewUnitsLayout extends StatelessWidget {
     }
   }
 
-  // Central navigation function
-  // Central navigation function
+  // 👈 --- MODIFIED: This is your navigation function
   void _navigateToLesson(BuildContext context, DocumentSnapshot lesson) {
     final lessonData = lesson.data() as Map<String, dynamic>? ?? {};
-    final lessonTitle = lessonData['title'] ?? 'Lesson';
+    final String category = lessonData['category'] ?? 'unknown';
 
-    showDialog(
-      context: context,
-      // 1. Give the builder's context a name (like 'dialogContext')
-      builder: (dialogContext) => AlertDialog(
-        title: Text(lessonTitle),
-        content: Text(
-            "Showing lesson content for: ${lessonData['description'] ?? '...'}"),
-        actions: [
-          TextButton(
-            // 2. Use the new 'dialogContext' to pop the dialog
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close'),
-          ),
-        ],
+    switch (category) {
+      case 'reading':
+        final List<String> contentIDs =
+            List<String>.from(lessonData['contentBlockIds'] ?? []);
+
+        if (contentIDs.isNotEmpty) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PagedReadingScreen(
+                lessonTitle: lessonTitle,
+                contentIDs: contentIDs,
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: No content IDs found.')),
+          );
+        }
+        break;
+      // ... other cases
+    }
+  }
+
+  // 👈 --- NEW: HELPER TO CHECK LOCK STATUS ---
+  /// Checks if a lesson at a given [index] is locked.
+  bool _isLessonLocked(int index) {
+    if (index == 0) {
+      return false; // Lesson 1 (index 0) is never locked
+    }
+    // Get the ID of the PREVIOUS lesson
+    final prevLessonId = lessons[index - 1].id; // e.g., M01-L01
+    // Check if the progress map says it's 'true'
+    final bool isPrevComplete = lessonProgressMap[prevLessonId] == true;
+
+    return !isPrevComplete; // It's locked if the previous is NOT complete
+  }
+
+  // 👈 --- NEW: HELPER TO SHOW ERROR MESSAGE ---
+  void _showLockedMessage(BuildContext context, int index) {
+    final prevLessonTitle =
+        lessons[index - 1].get('title') ?? 'the previous lesson';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Complete "$prevLessonTitle" first!'),
+        backgroundColor: Colors.red[700],
       ),
     );
   }
@@ -168,24 +242,30 @@ class ViewUnitsLayout extends StatelessWidget {
       //backgroundColor: const Color(0xFFF0F0F0),
       body: Container(
         decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.white, Color.fromARGB(255, 255, 241, 198), Color.fromARGB(106, 251, 189, 4), Color.fromARGB(255, 255, 241, 198), Colors.white, Colors.white,],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+          gradient: LinearGradient(
+            colors: [
+              Colors.white,
+              Color.fromARGB(255, 255, 241, 198),
+              Color.fromARGB(106, 251, 189, 4),
+              Color.fromARGB(255, 255, 241, 198),
+              Colors.white,
+              Colors.white,
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
         ),
-      ),
         child: Column(
           children: [
             // --- TOP HIVE DISPLAY ---
             _buildHiveDisplay(
               context,
-              // --- PARAMETERS CHANGED ---
               moduleTitle, // Pass "Module 1"
               lessonTitle, // Pass "Lesson 1"
-              lessons, 
+              lessons,
               selectedIndex,
             ),
-        
+
             // --- BOTTOM LESSON LIST ---
             _buildLessonList(context, lessons),
           ],
@@ -197,7 +277,6 @@ class ViewUnitsLayout extends StatelessWidget {
   // Helper widget for the top hive display
   Widget _buildHiveDisplay(
     BuildContext context,
-    // --- SIGNATURE CHANGED ---
     String moduleTitle, // Was unitTitle
     String lessonTitle,
     List<DocumentSnapshot> lessons,
@@ -218,13 +297,10 @@ class ViewUnitsLayout extends StatelessWidget {
       Offset(xSeparation, ySeparation), // Bottom-Right
       Offset(0, ySeparation * 2), // Bottommost
     ];
-    
-    // --- FIX FOR OVERLAP: Calculate the true height needed ---
-    // Total vertical offset range + one hive's height
+
     final double stackHeight = (ySeparation * 4) + hiveSize;
 
     return Container(
-      // Height of the whole area (Text + Stack)
       height: stackHeight + 100, // Add 100px for text and padding
       alignment: Alignment.center,
       child: Column(
@@ -232,7 +308,6 @@ class ViewUnitsLayout extends StatelessWidget {
         children: [
           const SizedBox(height: 10),
           Text(
-            // --- VARIABLE CHANGED ---
             moduleTitle, // Was unitTitle.toUpperCase()
             style: const TextStyle(
               color: Colors.black,
@@ -253,39 +328,51 @@ class ViewUnitsLayout extends StatelessWidget {
           // Sized Box for the Stack of Hives
           SizedBox(
             width: xSeparation * 2.5,
-            // --- FIX FOR OVERLAP: Use calculated height ---
             height: stackHeight, // Was ySeparation * 4.2
             child: Stack(
-              // --- FIX FOR OVERLAP: Use Alignment.center ---
               alignment: Alignment.center, // Was Alignment.topCenter
               children: List.generate(
                 lessons.length > 7 ? 7 : lessons.length,
                 (index) {
                   final lesson = lessons[index];
-                  final lessonData = lesson.data() as Map<String, dynamic>? ?? {};
+                  final lessonData =
+                      lesson.data() as Map<String, dynamic>? ?? {};
                   final bool isSelected = index == selectedIndex;
-                  final IconData? iconForThisHive = _getIconForCategory(lessonData['category']);
-                  
+                  final IconData? iconForThisHive =
+                      _getIconForCategory(lessonData['category']);
+
+                  // 👈 --- CHECK IF THIS HIVE IS LOCKED ---
+                  final bool isLocked = _isLessonLocked(index);
+
                   return Transform.translate(
                     offset: hivePositions[index],
                     child: GestureDetector(
+                      // --- 👈 THIS IS THE MODIFIED TAP LOGIC ⬇️ ---
                       onTap: () {
-                        if (isSelected) {
-                          _navigateToLesson(context, lesson);
+                        if (isLocked) {
+                          // Show error message
+                          _showLockedMessage(context, index);
                         } else {
+                          // It's unlocked, so update selection AND navigate
                           onLessonTap(index);
+                          _navigateToLesson(context, lesson);
                         }
                       },
+                      // --- ⬆️ END OF MODIFICATION ⬆️ ---
                       child: HexagonWidget(
                         isSelected: isSelected,
+                        isLocked: isLocked, // 👈 --- PASS LOCK STATE
                         size: hiveSize,
-                        child: iconForThisHive != null
-                            ? Icon(
-                                iconForThisHive,
-                                color: isSelected ? Colors.white : Colors.white70,
-                                size: hiveSize * 0.5,
-                              )
-                            : const SizedBox.shrink(),
+                        // 👈 --- SHOW LOCK ICON IF LOCKED
+                        child: Icon(
+                          isLocked ? Icons.lock_outline : iconForThisHive,
+                          color: isLocked
+                              ? Colors.grey[400]
+                              : isSelected
+                                  ? Colors.white
+                                  : Colors.white70,
+                          size: hiveSize * 0.5,
+                        ),
                         selectedColor: Color(0xFFFBBC04),
                         unselectedColor: Color(0xFFA27221)!,
                       ),
@@ -343,14 +430,26 @@ class ViewUnitsLayout extends StatelessWidget {
                     final category = lessonData['category'];
                     final icon = _getIconForCategory(category);
                     final isSelected = index == selectedIndex;
-        
+
+                    // 👈 --- CHECK IF THIS TILE IS LOCKED ---
+                    final bool isLocked = _isLessonLocked(index);
+
                     return LessonListTile(
                       title: lessonTitle,
                       icon: icon,
                       isSelected: isSelected,
+                      isLocked: isLocked, // 👈 --- PASS LOCK STATE
                       onTap: () {
-                        onLessonTap(index);
-                        _navigateToLesson(context, lesson);
+                        // --- 👈 THIS IS THE MODIFIED TAP LOGIC ⬇️ ---
+                        if (isLocked) {
+                          // Show error message
+                          _showLockedMessage(context, index);
+                        } else {
+                          // It's unlocked, so update selection AND navigate
+                          onLessonTap(index);
+                          _navigateToLesson(context, lesson);
+                        }
+                        // --- ⬆️ END OF MODIFICATION ⬆️ ---
                       },
                     );
                   },
@@ -369,6 +468,7 @@ class LessonListTile extends StatelessWidget {
   final String title;
   final IconData? icon;
   final bool isSelected;
+  final bool isLocked; // 👈 --- ADDED
   final VoidCallback onTap;
 
   const LessonListTile({
@@ -376,13 +476,27 @@ class LessonListTile extends StatelessWidget {
     required this.title,
     required this.icon,
     required this.isSelected,
+    this.isLocked = false, // 👈 --- ADDED
     required this.onTap,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final Color cardColor = isSelected ? Colors.blue : const Color(0xFFF0F0F0);
-    final Color textColor = isSelected ? Colors.white : Colors.black;
+    // --- 👈 MODIFIED: Update colors based on lock
+    final Color cardColor = isLocked
+        ? const Color(0xFFE0E0E0) // Locked card color
+        : isSelected
+            ? Colors.blue
+            : const Color(0xFFF0F0F0);
+
+    final Color textColor = isLocked
+        ? Colors.grey[600]! // Locked text color
+        : isSelected
+            ? Colors.white
+            : Colors.black;
+
+    final Color iconColor = isLocked ? Colors.grey[600]! : Colors.white;
+    // --- END MODIFICATION ---
 
     return Card(
       color: cardColor,
@@ -392,18 +506,21 @@ class LessonListTile extends StatelessWidget {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         leading: HexagonWidget(
-          icon: icon, // Pass specific icon
+          // --- 👈 MODIFIED: Pass lock state to hive
+          icon: isLocked ? Icons.lock_outline : icon,
           isSelected: isSelected,
+          isLocked: isLocked, // Pass lock state
+          // --- END MODIFICATION ---
           size: 50,
           selectedColor: Colors.white,
           unselectedColor: const Color(0xFFFBBC04),
           iconSelectedColor: Colors.blue,
-          iconUnselectedColor: Colors.white,
+          iconUnselectedColor: iconColor,
         ),
         title: Text(
           title,
           style: TextStyle(
-             fontSize: 12,
+            fontSize: 12,
             color: textColor,
           ),
         ),
@@ -418,6 +535,7 @@ class HexagonWidget extends StatelessWidget {
   final IconData? icon;
   final Widget? child; // Can be an Icon or Text
   final bool isSelected;
+  final bool isLocked; // 👈 --- ADDED
   final double size;
   final Color? selectedColor;
   final Color? unselectedColor;
@@ -429,6 +547,7 @@ class HexagonWidget extends StatelessWidget {
     this.icon,
     this.child,
     required this.isSelected,
+    this.isLocked = false, // 👈 --- ADDED
     this.size = 60.0,
     this.selectedColor,
     this.unselectedColor,
@@ -440,13 +559,19 @@ class HexagonWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color bgColor = isSelected
-        ? (selectedColor ?? const Color(0xFFFBBC04)) 
-        : (unselectedColor ?? Colors.brown[700]!.withOpacity(0.6));
+    // --- 👈 MODIFIED: Update colors based on lock
+    final Color bgColor = isLocked
+        ? Colors.grey[700]! // Locked color
+        : isSelected
+            ? (selectedColor ?? const Color(0xFFFBBC04))
+            : (unselectedColor ?? Colors.brown[700]!.withOpacity(0.6));
 
-    final Color effectiveIconColor = isSelected
-        ? (iconSelectedColor ?? Colors.white)
-        : (iconUnselectedColor ?? Colors.white70);
+    final Color effectiveIconColor = isLocked
+        ? Colors.grey[400]! // Locked icon color
+        : isSelected
+            ? (iconSelectedColor ?? Colors.white)
+            : (iconUnselectedColor ?? Colors.white70);
+    // --- END MODIFICATION ---
 
     // Get the path from the clipper
     final Path path = HexClipper().getClip(Size(size, size));
@@ -464,14 +589,16 @@ class HexagonWidget extends StatelessWidget {
         width: size,
         height: size,
         child: Center(
-          child: child ?? // Use child if provided
+          // --- 👈 MODIFIED: Child logic shows lock icon
+          child: child ?? // Use explicit child first
               (icon == null
                   ? const SizedBox.shrink()
                   : Icon(
-                      icon,
-                      color: effectiveIconColor, 
+                      icon, // This will be lock icon if locked
+                      color: effectiveIconColor,
                       size: size * 0.5,
                     )),
+          // --- END MODIFICATION ---
         ),
       ),
     );
@@ -498,20 +625,20 @@ class HexPainter extends CustomPainter {
     final Paint shadowPaint = Paint()
       ..color = shadowColor
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, shadowBlur);
-    
+
     canvas.drawPath(path, shadowPaint);
 
     // 2. Draw the hexagon color on top
     final Paint colorPaint = Paint()..color = color;
-    
+
     canvas.drawPath(path, colorPaint);
   }
 
   @override
   bool shouldRepaint(covariant HexPainter oldDelegate) {
     return oldDelegate.path != path ||
-           oldDelegate.color != color ||
-           oldDelegate.shadowColor != shadowColor ||
-           oldDelegate.shadowBlur != shadowBlur;
+        oldDelegate.color != color ||
+        oldDelegate.shadowColor != shadowColor ||
+        oldDelegate.shadowBlur != shadowBlur;
   }
 }

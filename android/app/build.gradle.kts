@@ -29,6 +29,10 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
     }
 
     buildTypes {
@@ -38,6 +42,11 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    packagingOptions {
+    doNotStrip.add("**/libpythonsitepackages.so")
+    doNotStrip.add("**/libpythonbundle.so") // <--- This is CORRECT
+}
 }
 
 flutter {
