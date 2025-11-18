@@ -9,7 +9,6 @@ class UserModel {
   final String firstName;
   final String lastName;
   final String birthday;
-  final String? fcmToken;
   
   // --- 1. THIS IS THE FIX ---
   // We make 'createdAt' nullable (with the '?')
@@ -27,17 +26,15 @@ class UserModel {
     required this.lastName,
     required this.birthday,
     
-    
     // --- 2. THIS IS THE OTHER PART OF THE FIX ---
     // We remove 'required' from 'this.createdAt'.
     // This makes it an optional parameter in the constructor.
     this.createdAt, 
-    this.fcmToken
   });
 
-  factory UserModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    
+  // Factory 'bridge' for building a model FROM Firestore data
+  factory UserModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data()!;
     
     return UserModel(
       uid: doc.id,
@@ -49,7 +46,6 @@ class UserModel {
       
       // We read it from Firestore as nullable, just in case
       createdAt: data['createdAt'] as Timestamp?, 
-      fcmToken: data['fcmToken'] as String?, // Map the new field
     );
   }
 
@@ -61,7 +57,6 @@ class UserModel {
       'firstName': firstName,
       'lastName': lastName,
       'birthday': birthday,
-      'fcmToken': fcmToken,
       
       // We DON'T include 'createdAt' here.
       // Our FirestoreService will add 'FieldValue.serverTimestamp()'
