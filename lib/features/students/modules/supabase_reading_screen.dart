@@ -160,6 +160,9 @@ class _PagedReadingScreenState extends State<PagedReadingScreen> {
 
   // Navigation controls
   Widget _buildNavigationControls(int totalPages) {
+    // 🌟 1. Check if we are on the last page
+    final bool isLastPage = _currentPageIndex == (totalPages - 1);
+
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
@@ -169,6 +172,8 @@ class _PagedReadingScreenState extends State<PagedReadingScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // --- "Prev" Button ---
+          // (This logic is unchanged)
           ElevatedButton.icon(
             icon: Icon(Icons.arrow_back),
             label: Text('Prev'),
@@ -180,19 +185,42 @@ class _PagedReadingScreenState extends State<PagedReadingScreen> {
             },
           ),
           
+          // --- Page Count ---
+          // (This logic is unchanged)
           Text(
             'Page ${_currentPageIndex + 1} of $totalPages',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           
+          // 🌟 --- 2. "Next" / "Done" Button --- 🌟
           ElevatedButton.icon(
             icon: Icon(Icons.arrow_forward),
-            label: Text('Next'),
-            onPressed: _currentPageIndex == (totalPages - 1) ? null : () {
-              _pageController.nextPage(
-                duration: Duration(milliseconds: 300),
-                curve: Curves.easeOut,
-              );
+            
+            // 3. Change the text based on the page
+            label: Text(isLastPage ? 'Done' : 'Next'), 
+            
+            style: ElevatedButton.styleFrom(
+              // 4. (Optional) Make the "Done" button a different color
+              backgroundColor: isLastPage ? Colors.green : null, 
+            ),
+            
+            // 5. Change the function based on the page
+            onPressed: () {
+              if (isLastPage) {
+                // --- ON "DONE" ---
+                // TODO: Add your "mark as complete" logic here
+                
+                // Navigate back to the previous screen   
+                Navigator.of(context).pop(); 
+                
+              } else {
+                // --- ON "NEXT" ---
+                // Just go to the next page
+                _pageController.nextPage(
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                );
+              }
             },
           ),
         ],
@@ -200,7 +228,6 @@ class _PagedReadingScreenState extends State<PagedReadingScreen> {
     );
   }
 }
-
 
 // -------------------------------------------------------------------
 // DYNAMIC PAGE CONTENT WIDGET

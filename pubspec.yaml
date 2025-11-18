@@ -56,6 +56,7 @@ dependencies:
   serious_python: ^0.9.4
   http: ^1.5.0
   supabase_flutter: ^2.10.3
+  youtube_player_flutter: ^9.1.3
 
 
 dev_dependencies:
