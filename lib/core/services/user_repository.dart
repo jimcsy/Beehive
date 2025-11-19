@@ -6,6 +6,17 @@ class UserRepository {
   final FirebaseFirestore _db;
   UserRepository(this._db);
 
+  // NEW METHOD: Updates the FCM token for the user (Kept for future use)
+  Future<void> updateFCMToken(String uid, String? token) async {
+    try {
+      await _db.collection('users').doc(uid).update({
+        'fcmToken': token, 
+      });
+    } catch (e) {
+      print('Error updating FCM token: $e');
+    }
+  }
+
   Future<UserModel?> getUser(String uid) async {
     try {
       final doc = await _db.collection('users').doc(uid).get();
@@ -21,10 +32,8 @@ class UserRepository {
   Stream<UserModel?> getUserStream(String uid) {
     return _db.collection('users').doc(uid).snapshots().map((doc) {
       if (doc.exists) {
-        // Convert the Firestore doc into a UserModel
         return UserModel.fromFirestore(doc);
       }
-      // Return null if the user document is deleted
       return null;
     });
   }
@@ -40,25 +49,18 @@ class UserRepository {
     }
   }
 
-  // [Inside UserRepository.dart]
-// [Inside UserRepository.dart]
   Stream<List<String>> getJoinedRoomIdsStream(String uid) {
     return _db
         .collection('users')
         .doc(uid)
         .collection('joinedRooms')
-        // 🛑 FIX 1: Add filter to show only ACTIVE (non-archived) rooms
         .where('isArchived', isEqualTo: false)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs
           .map((doc) {
-            final data = doc.data();
-            // The document should also contain the roomId field, but
-            // the existence of the document ID (doc.id) is sufficient here if you use doc.id
-            return doc.id; // Assuming doc.id is the room code/ID
+            return doc.id; 
           })
-          // We remove .whereType<String>() as doc.id is always a String
           .toList();
     });
   }
@@ -66,217 +68,139 @@ class UserRepository {
   Future<RecentModuleModel?> getRecentModule(String uid) async {
     try {
       final doc = await _db
-
           .collection('users')
-
           .doc(uid)
-
           .collection('recent')
-
           .doc('lastOpened')
-
           .get();
 
-
-
       if (doc.exists) {
-
         return RecentModuleModel.fromFirestore(doc);
-
       }
-
     } catch (e) {
-
       print('Error getting recent module: $e');
-
     }
-
     return null;
-
   }
-
-
 
   Future<void> setRecentModule(
-
     String uid,
-
     String roomId,
-
     String moduleId,
-
     String title,
-
   ) async {
-
     try {
-
       await _db
-
           .collection('users')
-
           .doc(uid)
-
           .collection('recent')
-
           .doc('lastOpened')
-
           .set({
-
         'roomId': roomId,
-
         'moduleId': moduleId,
-
         'title': title,
-
         'timestamp': FieldValue.serverTimestamp(),
-
       });
-
     } catch (e) {
-
       print('Error setting recent module: $e');
-
     }
-
   }
-
-
 
   Future<void> sendRoomDeletionNotifications({
-
     required String roomId,
-
     required String className,
-
     required String subject,
-
     required String teacherName,
-
     required List<String> studentIds,
-
   }) async {
-
     final batch = _db.batch();
-
     final notificationData = {
-
       'title': 'Room Deleted',
-
       'message':
-
           'The room "$className" ($subject) has been deleted by $teacherName.',
-
       'createdAt': FieldValue.serverTimestamp(),
-
       'read': false,
-
       'roomId': roomId,
-
       'type': 'room_deletion',
-
     };
 
-
-
     for (String studentId in studentIds) {
-
       final notifRef = _db
-
           .collection('users')
-
           .doc(studentId)
-
           .collection('notifications')
-
           .doc();
-
       batch.set(notifRef, notificationData);
-
     }
-
     await batch.commit();
-
   }
-
- 
-
-  // NEW METHOD: Sends notifications for room archiving
 
   Future<void> sendRoomArchiveNotifications({
-
     required String roomId,
-
     required String className,
-
     required String subject,
-
     required String teacherName,
-
     required List<String> studentIds,
-
   }) async {
-
     final batch = _db.batch();
-
     final notificationData = {
-
-      'title': 'Room Archived', // Changed title
-
+      'title': 'Room Archived',
       'message':
-
-          '⚠️ Room Archive Alert: The course "$className" ($subject) has been archived by $teacherName. It is no longer visible in your active list.', // Changed message content
-
+          '⚠️ Room Archive Alert: The course "$className" ($subject) has been archived by $teacherName. It is no longer visible in your active list.',
       'createdAt': FieldValue.serverTimestamp(),
-
       'read': false,
-
       'roomId': roomId,
-
-      'type': 'room_archive', // Changed type
-
+      'type': 'room_archive',
     };
 
+    for (String studentId in studentIds) {
+      final notifRef = _db
+          .collection('users')
+          .doc(studentId)
+          .collection('notifications')
+          .doc();
+      batch.set(notifRef, notificationData);
+    }
+    await batch.commit();
+  }
 
+  // NEW METHOD: Sends notifications for room unarchiving
+  Future<void> sendRoomUnarchiveNotifications({
+    required String roomId,
+    required String className,
+    required String subject,
+    required String teacherName,
+    required List<String> studentIds,
+  }) async {
+    final batch = _db.batch();
+    final notificationData = {
+      'title': 'Room Restored',
+      'message':
+          '✅ Room Restored: The course "$className" ($subject) has been restored by $teacherName. It is now visible in your active list.',
+      'createdAt': FieldValue.serverTimestamp(),
+      'read': false,
+      'roomId': roomId,
+      'type': 'room_unarchive',
+    };
 
     for (String studentId in studentIds) {
-
       final notifRef = _db
-
           .collection('users')
-
           .doc(studentId)
-
           .collection('notifications')
-
           .doc();
-
       batch.set(notifRef, notificationData);
-
     }
-
     await batch.commit();
-
   }
-
-
 
   Future<void> sendTestNotification(String studentId) async {
-
     await _db.collection('users').doc(studentId).collection('notifications').add({
-
       'title': '🧪 Test Notification',
-
       'message': 'This is a test notification to check if the system is working!',
-
       'createdAt': FieldValue.serverTimestamp(),
-
       'read': false,
-
       'type': 'test',
-
     });
-
   }
-
 }
