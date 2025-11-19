@@ -24,13 +24,23 @@ class RoomRepository {
 
   // UPDATED: Filtered to exclude archived rooms (isArchived: false)
   Stream<List<RoomModel>> getTeacherRoomsStream(String teacherUid) {
+    // NOTE: Some existing room documents may not include `isArchived`.
+    // Querying with `.where('isArchived', isEqualTo: false)` will exclude
+    // documents that simply lack the field. To support older data we fetch
+    // all rooms for the teacher and filter client-side by `isArchived != true`.
     return _db
         .collection('rooms')
         .where('creatorId', isEqualTo: teacherUid)
-        .where('isArchived', isEqualTo: false) 
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
+      // Filter on the raw document data so we can support documents that
+      // don't include the `isArchived` field (treat missing as not archived).
+      final activeDocs = snapshot.docs.where((doc) {
+        final data = doc.data();
+        return data['isArchived'] != true;
+      }).toList();
+
+      return activeDocs
           .map((doc) => RoomModel.fromFirestore(
               doc as DocumentSnapshot<Map<String, dynamic>>))
           .toList();
@@ -54,14 +64,19 @@ class RoomRepository {
 
   Future<List<RoomModel>> getTeacherRooms(String teacherUid) async {
     try {
-      final snapshot = await _db
+        final snapshot = await _db
           .collection('rooms')
           .where('creatorId', isEqualTo: teacherUid)
-          .where('isArchived', isEqualTo: false) // ARCHIVE FILTER ADDED
           .get();
-      return snapshot.docs
+        // Filter client-side: treat missing `isArchived` as not archived
+        final activeDocs = snapshot.docs.where((doc) {
+        final data = doc.data();
+        return data['isArchived'] != true;
+        }).toList();
+
+        return activeDocs
           .map((doc) => RoomModel.fromFirestore(
-              doc as DocumentSnapshot<Map<String, dynamic>>))
+            doc as DocumentSnapshot<Map<String, dynamic>>))
           .toList();
     } catch (e) {
       print('Error getting teacher rooms: $e');
@@ -108,9 +123,31 @@ Future<void> archiveRoom(String roomId) async {
   // NEW METHOD: Unarchives a room
   Future<void> unarchiveRoom(String roomId) async {
     try {
+      // 1) Update the room document
       await _db.collection('rooms').doc(roomId).update({
         'isArchived': false, // Set the flag back to false
+        'unarchivedAt': FieldValue.serverTimestamp(),
       });
+
+      // 2) Update all students' joinedRooms sub-documents so the room
+      // reappears in their active lists. Older joinedRooms entries may have
+      // been set to isArchived=true during archiving.
+      final membersSnapshot = await _db.collection('rooms').doc(roomId).collection('members').get();
+      if (membersSnapshot.docs.isNotEmpty) {
+        final batch = _db.batch();
+        for (var memberDoc in membersSnapshot.docs) {
+          final studentId = memberDoc.id;
+          final joinedRoomRef = _db
+              .collection('users')
+              .doc(studentId)
+              .collection('joinedRooms')
+              .doc(roomId);
+
+          // Use set with merge to avoid overwriting unexpected fields
+          batch.set(joinedRoomRef, {'isArchived': false}, SetOptions(merge: true));
+        }
+        await batch.commit();
+      }
     } catch (e) {
       print('Error unarchiving room: $e');
       rethrow;

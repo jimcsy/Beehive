@@ -43,22 +43,33 @@ class UserRepository {
   // [Inside UserRepository.dart]
 // [Inside UserRepository.dart]
   Stream<List<String>> getJoinedRoomIdsStream(String uid) {
+    // NOTE: Some older joinedRooms documents may not have the `isArchived`
+    // field set. Querying with `.where('isArchived', isEqualTo: false)` will
+    // exclude those documents. To be robust we fetch all joinedRooms and
+    // perform the archive filtering client-side so documents missing the flag
+    // are treated as active (not archived).
     return _db
         .collection('users')
         .doc(uid)
         .collection('joinedRooms')
-        // 🛑 FIX 1: Add filter to show only ACTIVE (non-archived) rooms
-        .where('isArchived', isEqualTo: false)
         .snapshots()
         .map((snapshot) {
+      // Debug: log counts to help troubleshoot empty lists
+      try {
+        // Print useful debug info during development
+        // ignore: avoid_print
+        print('getJoinedRoomIdsStream: found ${snapshot.docs.length} joinedRooms for user=$uid');
+      } catch (_) {}
+
       return snapshot.docs
           .map((doc) {
             final data = doc.data();
-            // The document should also contain the roomId field, but
-            // the existence of the document ID (doc.id) is sufficient here if you use doc.id
-            return doc.id; // Assuming doc.id is the room code/ID
+            final isArchived = data['isArchived'] == true;
+            // If archived, skip by returning null
+            if (isArchived) return null;
+            return doc.id;
           })
-          // We remove .whereType<String>() as doc.id is always a String
+          .whereType<String>()
           .toList();
     });
   }

@@ -1,4 +1,8 @@
+import 'package:beehive/features/students/modules/supabase_code_screen.dart';
+import 'package:beehive/features/students/modules/supabase_game_screen.dart';
+import 'package:beehive/features/students/modules/supabase_quiz_screen.dart';
 import 'package:beehive/features/students/modules/supabase_reading_screen.dart';
+import 'package:beehive/features/students/modules/supabase_video_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:beehive/utils/hexagonal.dart'; // Uses your HexClipper
@@ -122,6 +126,8 @@ class _ViewUnitsTabState extends State<ViewUnitsTab> {
                   selectedIndex: _selectedIndex,
                   lessonProgressMap:
                       lessonProgressMap, // 👈 --- PASS PROGRESS MAP DOWN
+                  moduleId: widget.moduleId, // Pass moduleId for progress
+                  userId: widget.userId, // Pass userId for context
                   onLessonTap: (index) {
                     // This callback updates the state
                     setState(() {
@@ -148,6 +154,8 @@ class ViewUnitsLayout extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onLessonTap; // Callback function
   final Map<String, dynamic> lessonProgressMap; // 👈 --- ADDED: Progress data
+  final String moduleId; // pass-through for progress updates
+  final String userId; // pass-through for progress context
 
   const ViewUnitsLayout({
     Key? key,
@@ -158,6 +166,8 @@ class ViewUnitsLayout extends StatelessWidget {
     required this.selectedIndex,
     required this.onLessonTap,
     required this.lessonProgressMap, // 👈 --- ADDED: Progress data
+    required this.moduleId,
+    required this.userId,
   }) : super(key: key);
 
   // Helper function to get an icon based on category
@@ -184,19 +194,25 @@ class ViewUnitsLayout extends StatelessWidget {
   void _navigateToLesson(BuildContext context, DocumentSnapshot lesson) {
     final lessonData = lesson.data() as Map<String, dynamic>? ?? {};
     final String category = lessonData['category'] ?? 'unknown';
+    // 1. 🌟 Get the title directly from the tapped lesson
+    final String newLessonTitle = lessonData['title'] ?? 'Lesson';
 
     switch (category) {
       case 'reading':
         final List<String> contentIDs =
             List<String>.from(lessonData['contentBlockIds'] ?? []);
 
+
         if (contentIDs.isNotEmpty) {
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => PagedReadingScreen(
-                lessonTitle: lessonTitle,
+                // 2. 🌟 Use the new title here
+                lessonTitle: newLessonTitle,
                 contentIDs: contentIDs,
+                moduleId: moduleId,
+                lessonId: lesson.id,
               ),
             ),
           );
@@ -206,7 +222,104 @@ class ViewUnitsLayout extends StatelessWidget {
           );
         }
         break;
-      // ... other cases
+      case 'video':
+      // 1. Get the array of IDs from Firestore
+      final List<String> contentIDs = 
+          List<String>.from(lessonData['contentBlockIds'] ?? []);
+
+      if (contentIDs.isNotEmpty) {
+        // 2. Navigate to your NEW video screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VideoLessonScreen( // 👈 Your new screen
+              contentIDs: contentIDs,
+              moduleId: moduleId,
+              lessonId: lesson.id,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: No videos found for this lesson.')),
+        );
+      }
+      break;
+      
+      // 🌟 --- ADD THIS NEW CASE --- 🌟
+    case 'quiz':
+      // 1. Get the array of IDs from Firestore
+      final List<String> contentIDs = 
+          List<String>.from(lessonData['contentBlockIds'] ?? []);
+
+      if (contentIDs.isNotEmpty) {
+        // 2. Navigate to your NEW quiz screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => QuizLessonScreen(
+              contentIDs: contentIDs, // 👈 Pass the list of IDs
+              lessonTitle: lessonData['title'] ?? 'Quiz',
+              moduleId: moduleId,
+              lessonId: lesson.id,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: No questions found for this quiz.')),
+        );
+      }
+      break;
+
+      case 'code':
+      final List<String> contentIDs = 
+          List<String>.from(lessonData['contentBlockIds'] ?? []);
+
+      if (contentIDs.isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CodeScreen(
+              // 🌟 FIX: Change 'contentIDs' to 'contentID' (singular)
+              contentID: contentIDs.first,
+              moduleId: moduleId,
+              lessonId: lesson.id,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: No practice problem found.')),
+        );
+      }
+      break;
+
+      case 'bulb': // The category from your Firestore screenshot
+      
+      // 1. Get the array of IDs (it's just one ID for this game)
+      final List<String> contentIDs = 
+          List<String>.from(lessonData['contentBlockIds'] ?? []);
+
+      if (contentIDs.isNotEmpty) {
+        // 2. Navigate to your NEW game screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+           builder: (context) => DragDropGameScreen(
+              contentIDs: contentIDs, // Pass the whole list!
+              moduleId: moduleId,
+              lessonId: lesson.id,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: No activity found.')),
+        );
+      }
+      break;
+    // 🌟 --- END OF NEW CASE --- 🌟
     }
   }
 

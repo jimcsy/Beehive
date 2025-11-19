@@ -15,7 +15,9 @@ import 'package:highlight/languages/python.dart';
 
 
 class IdeScreen extends StatefulWidget {
-  const IdeScreen({Key? key}) : super(key: key);
+  final String? initialCode;
+
+  const IdeScreen({Key? key, this.initialCode}) : super(key: key);
 
   @override
   _IdeScreenState createState() => _IdeScreenState();
@@ -31,7 +33,7 @@ class _IdeScreenState extends State<IdeScreen> {
   void initState() {
     super.initState();
     _codeController = CodeController(
-      text: "# Welcome to Beehive!\nprint('Hello, Python!')",
+      text: widget.initialCode ?? "# Welcome to Beehive!\nprint('Hello, Python!')",
       language: python,
       // You can add your theme here if you get it working
       // theme: ideTheme.theme,
@@ -124,6 +126,16 @@ class _IdeScreenState extends State<IdeScreen> {
           iconTheme: const IconThemeData(
             color: Colors.white, // This makes the back button white
           ),
+          actions: [
+            // Submit button: returns the current code to the caller
+            IconButton(
+              icon: const Icon(Icons.send, color: Colors.white),
+              onPressed: () {
+                // Return the current code as the result
+                Navigator.of(context).pop(_codeController.text);
+              },
+            ),
+          ],
         ),
         
         body: CodeEditor(
