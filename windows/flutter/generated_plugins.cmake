@@ -9,6 +9,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   firebase_auth
   firebase_core
   firebase_storage
+  flutter_inappwebview_windows
   irondash_engine_context
   serious_python_windows
   super_native_extensions

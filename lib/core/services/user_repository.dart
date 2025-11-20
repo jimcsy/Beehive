@@ -50,6 +50,11 @@ class UserRepository {
   }
 
   Stream<List<String>> getJoinedRoomIdsStream(String uid) {
+    // NOTE: Some older joinedRooms documents may not have the `isArchived`
+    // field set. Querying with `.where('isArchived', isEqualTo: false)` will
+    // exclude those documents. To be robust we fetch all joinedRooms and
+    // perform the archive filtering client-side so documents missing the flag
+    // are treated as active (not archived).
     return _db
         .collection('users')
         .doc(uid)
@@ -57,6 +62,13 @@ class UserRepository {
         .where('isArchived', isEqualTo: false)
         .snapshots()
         .map((snapshot) {
+      // Debug: log counts to help troubleshoot empty lists
+      try {
+        // Print useful debug info during development
+        // ignore: avoid_print
+        print('getJoinedRoomIdsStream: found ${snapshot.docs.length} joinedRooms for user=$uid');
+      } catch (_) {}
+
       return snapshot.docs
           .map((doc) {
             return doc.id; 

@@ -54,6 +54,10 @@ class RoomRepository {
   // -------------------------
 
   Stream<List<RoomModel>> getTeacherRoomsStream(String teacherUid) {
+    // NOTE: Some existing room documents may not include `isArchived`.
+    // Querying with `.where('isArchived', isEqualTo: false)` will exclude
+    // documents that simply lack the field. To support older data we fetch
+    // all rooms for the teacher and filter client-side by `isArchived != true`.
     return _db
         .collection('rooms')
         .where('creatorId', isEqualTo: teacherUid)
@@ -81,7 +85,7 @@ class RoomRepository {
 
   Future<List<RoomModel>> getTeacherRooms(String teacherUid) async {
     try {
-      final snapshot = await _db
+        final snapshot = await _db
           .collection('rooms')
           .where('creatorId', isEqualTo: teacherUid)
           .where('isArchived', isEqualTo: false)
