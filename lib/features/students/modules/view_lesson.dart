@@ -262,6 +262,7 @@ class ViewUnitsLayout extends StatelessWidget {
               lessonTitle: lessonData['title'] ?? 'Quiz',
               moduleId: moduleId,
               lessonId: lesson.id,
+              userId: userId, // NEW: pass userId down from ViewUnitsLayout
             ),
           ),
         );

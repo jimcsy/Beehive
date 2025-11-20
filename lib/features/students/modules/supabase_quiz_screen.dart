@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:convert'; // To decode the 'choices' JSON
+import 'dart:convert'; // To encode the user answers JSON
 import 'package:beehive/features/students/modules/progress_service.dart';
 
 class QuizLessonScreen extends StatefulWidget {
@@ -8,6 +8,7 @@ class QuizLessonScreen extends StatefulWidget {
   final String lessonTitle;
   final String moduleId;
   final String lessonId;
+  final String userId; // NEW: required to save submission
 
   const QuizLessonScreen({
     Key? key,
@@ -15,6 +16,7 @@ class QuizLessonScreen extends StatefulWidget {
     required this.lessonTitle,
     required this.moduleId,
     required this.lessonId,
+    required this.userId, // NEW
   }) : super(key: key);
 
   @override
@@ -23,13 +25,9 @@ class QuizLessonScreen extends StatefulWidget {
 
 class _QuizLessonScreenState extends State<QuizLessonScreen> {
   late final Future<List<Map<String, dynamic>>> _fetchQuestions;
-  
-  // To track the user's selected answers
-  // Map<QuestionID, SelectedAnswerKey>
   final Map<String, String> _userAnswers = {};
-  
-  // To track if the user has submitted the quiz
   bool _isSubmitted = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -42,14 +40,12 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
     if (widget.contentIDs.isEmpty) return [];
 
     try {
-      // 1. Fetch from your 'QuizQuestion' table
-      //    (Check your table name in Supabase, it looks like 'QuizQuestion' in the image)
       final List<Map<String, dynamic>> fetchedQuestions = await supabase
-          .from('QuizQuestion') 
+          .from('QuizQuestion')
           .select()
           .inFilter('lessonContentId', widget.contentIDs);
 
-      // 2. Re-sort based on Firestore order
+      // Re-sort based on the provided contentIDs order
       final Map<String, Map<String, dynamic>> questionMap = {
         for (var q in fetchedQuestions) q['lessonContentId']: q
       };
@@ -60,26 +56,109 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
         }
       }
       return sortedQuestions;
-
     } catch (e) {
       print('Error fetching quiz: $e');
       throw Exception('Failed to load quiz: $e');
     }
   }
 
-  void _submitQuiz() async {
+  Future<void> _submitQuiz() async {
+    if (_isSubmitted) return;
+
     setState(() {
       _isSubmitted = true;
+      _isSaving = true;
     });
-    // You can add logic here to calculate the score
-    // and save it to Firestore if you want.
+
     try {
-      await ProgressService().markLessonAsCompleted(
-        moduleId: widget.moduleId,
-        lessonId: widget.lessonId,
-      );
+      final questions = await _fetchQuestions;
+      final int totalQuestions = questions.length;
+      int correctCount = 0;
+
+      // Calculate score: compare each question's correctAnswer with user's answer
+      for (final q in questions) {
+        final String qId = q['lessonContentId'] ?? '';
+        final String correct = (q['correctAnswer'] ?? '').toString();
+        final String? userSelected = _userAnswers[qId];
+
+        if (userSelected != null && userSelected == correct) {
+          correctCount += 1;
+        }
+      }
+
+      final int scoreTotal = correctCount;
+
+      // Prepare submission row
+      final Map<String, dynamic> submissionRow = {
+        // Use the correct column names matching your Supabase table
+        'userId': widget.userId, // If your DB expects integer, cast/adapt here
+        'moduleId': widget.moduleId,
+        // the table field is 'lessonContentId' in your screenshot;
+        // since this represents the quiz/lesson we put the lessonId here
+        'lessonContentId': widget.lessonId,
+        'scoreTotal': scoreTotal,
+        'totalQuestions': totalQuestions,
+        // Save the map of user's answers as JSONB
+        'userAnswers': jsonEncode(_userAnswers),
+        'submittedAt': DateTime.now().toUtc().toIso8601String(),
+      };
+
+      final supabase = Supabase.instance.client;
+
+      // Insert the submission.
+      // If you prefer to replace a previous submission by same user for same lesson,
+      // consider using upsert() with an appropriate unique constraint.
+      // Here we do a simple insert; change to upsert if needed.
+      final insertResult = await supabase.from('QuizSubmission').insert(submissionRow);
+
+      // Optional: If your table uses integer userId but you pass string,
+      // Supabase may fail. Adjust types in DB or cast accordingly in code.
+
+      // Mark lesson completed in Firestore progress
+      try {
+        await ProgressService().markLessonAsCompleted(
+          moduleId: widget.moduleId,
+          lessonId: widget.lessonId,
+        );
+      } catch (e) {
+        // Non-fatal if marking progress fails
+        print('Failed to mark quiz complete: $e');
+      }
+
+      // Show the result to the user
+      if (mounted) {
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Quiz Submitted'),
+            content: Text('You scored $scoreTotal / $totalQuestions'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
     } catch (e) {
-      print('Failed to mark quiz complete: $e');
+      print('Error submitting quiz: $e');
+
+      // If DB save failed, allow user to re-submit (set _isSubmitted back to false)
+      if (mounted) {
+        setState(() {
+          _isSubmitted = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save submission: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
     }
   }
 
@@ -91,13 +170,13 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
         future: _fetchQuestions,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(child: Text('This quiz has no questions.'));
+            return const Center(child: Text('This quiz has no questions.'));
           }
 
           final questions = snapshot.data!;
@@ -106,7 +185,7 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
             children: [
               Expanded(
                 child: ListView.builder(
-                  padding: EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(16.0),
                   itemCount: questions.length,
                   itemBuilder: (context, index) {
                     final question = questions[index];
@@ -114,17 +193,17 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
                   },
                 ),
               ),
-              
+
               // Submit Button
               if (!_isSubmitted)
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: ElevatedButton(
-                    onPressed: _submitQuiz,
+                    onPressed: _isSaving ? null : _submitQuiz,
                     style: ElevatedButton.styleFrom(
-                      minimumSize: Size(double.infinity, 50),
+                      minimumSize: const Size(double.infinity, 50),
                     ),
-                    child: Text("Submit Quiz"),
+                    child: _isSaving ? const SizedBox(height:20, width:20, child: CircularProgressIndicator(color: Colors.white, strokeWidth:2)) : const Text("Submit Quiz"),
                   ),
                 ),
             ],
@@ -137,16 +216,16 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
   Widget _buildQuestionCard(Map<String, dynamic> questionData, int number) {
     final String id = questionData['lessonContentId'];
     final String text = questionData['questionText'] ?? 'No Question Text';
-    
-    // Parse choices (JSONB)
-    // It looks like: {"A": "Answer A", "B": "Answer B"}
-    final Map<String, dynamic> choices = questionData['choices'] ?? {};
-    
+
+    final Map<String, dynamic> choices = (questionData['choices'] is String)
+        ? jsonDecode(questionData['choices'])
+        : (questionData['choices'] ?? {});
+
     final String correctAnswer = questionData['correctAnswer'] ?? '';
     final String? selectedAnswer = _userAnswers[id];
 
     return Card(
-      margin: EdgeInsets.only(bottom: 16.0),
+      margin: const EdgeInsets.only(bottom: 16.0),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -155,15 +234,15 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
             // Question Text
             Text(
               "$number. $text",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 12),
-            
+            const SizedBox(height: 12),
+
             // Choices
             ...choices.entries.map((entry) {
               final String key = entry.key; // "A", "B", etc.
               final String val = entry.value.toString(); // "Answer text"
-              
+
               Color? tileColor;
               if (_isSubmitted) {
                 if (key == correctAnswer) {
@@ -179,13 +258,13 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
                   title: Text("$key. $val"),
                   value: key,
                   groupValue: selectedAnswer,
-                  onChanged: _isSubmitted 
-                    ? null // Disable changing answers after submit
-                    : (value) {
-                      setState(() {
-                        _userAnswers[id] = value!;
-                      });
-                    },
+                  onChanged: _isSubmitted
+                      ? null // Disable changing answers after submit
+                      : (value) {
+                          setState(() {
+                            _userAnswers[id] = value!;
+                          });
+                        },
                 ),
               );
             }).toList(),
