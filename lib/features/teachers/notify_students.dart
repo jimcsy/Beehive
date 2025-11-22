@@ -1,119 +1,140 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+// Conceptual File: lib/features/teachers/notify_students.dart
 
+import 'package:beehive/core/services/firestore_services.dart';
+import 'package:beehive/core/services/user_repository.dart'; // REQUIRED for Unarchive logic
+
+// This class will be instantiated inside RoomRepository's methods.
+
+// Helper to get RoomMemberIds (This should typically live in RoomRepository, 
+// but we define a function here to use the correct repository calls).
+// NOTE: RoomRepository has the getRoomMemberIds method, so we will use that 
+// via the firestoreService.rooms reference.
+
+// --- 1. NOTIFY STUDENTS ON ROOM DELETE ---
 Future<void> notifyStudentsOnRoomDelete({
   required String className,
   required String subject,
   required String roomId,
   required String teacherName,
+  required FirestoreService firestoreService,
 }) async {
-  final firestore = FirebaseFirestore.instance;
-
   try {
-    print("🔍 Finding students who joined room: $roomId");
+    print("🔍 Finding students who joined room: $roomId for deletion.");
 
-    // 🔹 First method: Check room members subcollection
-    final roomMembersSnapshot = await firestore
-        .collection('rooms')
-        .doc(roomId)
-        .collection('members')
-        .get();
-
-    List<String> studentIds = [];
-    
-    // Get student IDs from room members
-    for (var memberDoc in roomMembersSnapshot.docs) {
-      studentIds.add(memberDoc.id); // member doc ID is the student ID
-      print("🔍 Found member: ${memberDoc.id}");
-    }
-
-    // 🔹 Second method: Search all users' joinedRooms subcollections
-    if (studentIds.isEmpty) {
-      print("🔍 No members found in room subcollection. Searching user subcollections...");
-      
-      final usersSnapshot = await firestore.collection('users').get();
-      
-      for (var userDoc in usersSnapshot.docs) {
-        final joinedRoomsSnapshot = await userDoc.reference
-            .collection('joinedRooms')
-            .where('roomId', isEqualTo: roomId)
-            .get();
-            
-        if (joinedRoomsSnapshot.docs.isNotEmpty) {
-          studentIds.add(userDoc.id);
-          print("🔍 Found student in joinedRooms: ${userDoc.id}");
-        }
-      }
-    }
+    // Use the service to get member IDs (method is in RoomRepository)
+    final studentIds = await firestoreService.rooms.getRoomMemberIds(roomId);
 
     if (studentIds.isEmpty) {
-      print("⚠️ No students found for room $roomId. Skipping notifications.");
+      print("⚠️ No students found for room $roomId. Skipping deletion notifications.");
       return;
     }
 
-    print("✅ Found ${studentIds.length} students to notify.");
+    print("✅ Found ${studentIds.length} students to notify about deletion.");
 
-    // 🔹 Send notifications to all found students
-    for (String studentId in studentIds) {
-      try {
-        // Get student email for better notification
-        final userDoc = await firestore.collection('users').doc(studentId).get();
-        final studentEmail = userDoc.data()?['email'] ?? 'Unknown';
+    // Use the UserRepository to send batch writes
+    await firestoreService.users.sendRoomDeletionNotifications(
+      roomId: roomId,
+      className: className,
+      subject: subject,
+      teacherName: teacherName,
+      studentIds: studentIds,
+    );
 
-        // 🔹 Save notification inside each student's subcollection
-        await firestore
-            .collection('users')
-            .doc(studentId)
-            .collection('notifications')
-            .add({
-          'title': 'Room Deleted',
-          'message': 'The room "$className" ($subject) has been deleted by $teacherName.',
-          'createdAt': FieldValue.serverTimestamp(),
-          'read': false, // Use 'read' instead of 'isRead' for consistency
-          'roomId': roomId,
-          'type': 'room_deletion',
-        });
-
-        // 🔹 Clean up: Remove the room from student's joinedRooms subcollection
-        final joinedRoomsSnapshot = await firestore
-            .collection('users')
-            .doc(studentId)
-            .collection('joinedRooms')
-            .where('roomId', isEqualTo: roomId)
-            .get();
-            
-        for (var joinedRoomDoc in joinedRoomsSnapshot.docs) {
-          await joinedRoomDoc.reference.delete();
-          print("🧹 Cleaned up joinedRoom for $studentEmail");
-        }
-
-        print("📩 Notification sent to $studentEmail ($studentId)");
-      } catch (notifError) {
-        print("❌ Failed to send notification to $studentId: $notifError");
-      }
-    }
-
-    print("✅ Notification process completed!");
+    print("✅ Deletion notification process completed!");
   } catch (e) {
-    print("❌ Error sending notifications: $e");
+    print("❌ Error sending deletion notifications: $e");
+    rethrow;
   }
 }
 
-// 🧪 TEST FUNCTION - Call this to test notifications manually
-Future<void> sendTestNotification({required String studentId}) async {
+
+// --- 2. NOTIFY STUDENTS ON ROOM ARCHIVE ---
+Future<void> notifyStudentsOnRoomArchive({
+  required String className,
+  required String subject,
+  required String roomId,
+  required String teacherName,
+  required FirestoreService firestoreService,
+}) async {
+  try {
+    print("🔍 Finding students who joined room: $roomId for archive notification.");
+
+    // 1. Get the list of student IDs who are members of this room
+    final studentIds = await firestoreService.rooms.getRoomMemberIds(roomId);
+
+    if (studentIds.isEmpty) {
+      print("⚠️ No students found for room $roomId. Skipping archive notifications.");
+      return;
+    }
+
+    print("✅ Found ${studentIds.length} students to notify about archive.");
+
+    // 2. Use the service to send the batch archive notifications
+    await firestoreService.users.sendRoomArchiveNotifications(
+      roomId: roomId,
+      className: className,
+      subject: subject,
+      teacherName: teacherName,
+      studentIds: studentIds,
+    );
+
+    print("✅ Archive notification process completed!");
+  } catch (e) {
+    print("❌ Error sending archive notifications: $e");
+    rethrow;
+  }
+}
+
+// --- 3. NOTIFY STUDENTS ON ROOM UNARCHIVE (CORRECTED) ---
+// This is the functional version of the method.
+Future<void> notifyStudentsOnRoomUnarchive({
+  required String className,
+  required String subject,
+  required String roomId,
+  required String teacherName,
+  // 🛑 FIX: This requires the full service to perform both lookup (rooms) and write (users)
+  required FirestoreService firestoreService, 
+}) async {
+  try {
+    print("🔍 Finding students who joined room: $roomId for unarchive notification.");
+
+    // 1. Get the list of student IDs who are members of this room (via RoomRepository)
+    final studentIds = await firestoreService.rooms.getRoomMemberIds(roomId);
+
+    if (studentIds.isEmpty) {
+      print("⚠️ No students found for room $roomId. Skipping unarchive notifications.");
+      return;
+    }
+
+    print("✅ Found ${studentIds.length} students to notify about unarchive.");
+
+    // 2. Use the service to send the batch unarchive notifications (via UserRepository)
+    await firestoreService.users.sendRoomUnarchiveNotifications(
+      roomId: roomId,
+      className: className,
+      subject: subject,
+      teacherName: teacherName,
+      studentIds: studentIds,
+    );
+
+    print("✅ Unarchive notification process completed!");
+  } catch (e) {
+    print("❌ Error sending unarchive notifications: $e");
+    rethrow;
+  }
+}
+
+
+// 🧪 TEST FUNCTION - Refactored
+Future<void> sendTestNotification({
+  required String studentId,
+  required FirestoreService firestoreService, // <-- Also needs the service
+}) async {
   try {
     print("🧪 Sending test notification to student: $studentId");
     
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(studentId)
-        .collection('notifications')
-        .add({
-      'title': '🧪 Test Notification',
-      'message': 'This is a test notification to check if the system is working!',
-      'createdAt': FieldValue.serverTimestamp(),
-      'read': false,
-      'type': 'test',
-    });
+    // --- 7. REFACTORED: Use the service ---
+    await firestoreService.users.sendTestNotification(studentId);
     
     print("✅ Test notification sent successfully!");
   } catch (e) {

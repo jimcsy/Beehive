@@ -1,9 +1,12 @@
+import 'package:beehive/core/services/firestore_services.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'package:beehive/core/models/user_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Needed for direct query
 
 class JoinRoomDialog extends StatefulWidget {
-  const JoinRoomDialog({super.key});
+  final UserModel userModel;
+  const JoinRoomDialog({super.key, required this.userModel});
 
   @override
   State<JoinRoomDialog> createState() => _JoinRoomDialogState();
@@ -11,7 +14,6 @@ class JoinRoomDialog extends StatefulWidget {
 
 class _JoinRoomDialogState extends State<JoinRoomDialog> {
   final TextEditingController codeController = TextEditingController();
-  final user = FirebaseAuth.instance.currentUser;
   bool isLoading = false;
 
   Future<void> joinRoom() async {
@@ -20,57 +22,62 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
 
     setState(() => isLoading = true);
 
+    // Get the service from Provider
+    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+
     try {
-      final doc = await FirebaseFirestore.instance
+      // 1. Check if the room exists AND get its ID
+      final roomQuery = await FirebaseFirestore.instance
           .collection('rooms')
-          .doc(code)
+          .where('roomCode', isEqualTo: code)
+          .limit(1)
           .get();
 
-      if (!doc.exists) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Room not found!")),
+      if (roomQuery.docs.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Room not found!")),
+          );
+        }
+      } else {
+        // 🌟 FOUND THE ROOM ID 🌟
+        final roomId = roomQuery.docs.first.id;
+
+        // 2. Join the room (Standard Logic)
+        await firestoreService.rooms.joinRoom(code, widget.userModel);
+
+        // 3. 🌟 GENERATE PROGRESS 🌟
+        // This creates the document in users/{uid}/progress/{moduleId}
+        await firestoreService.users.initializeProgressForRoom(
+            widget.userModel.uid, 
+            roomId
         );
-        setState(() => isLoading = false);
-        return;
+
+        if (mounted) {
+          Navigator.pop(context); // Close the dialog
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Joined room successfully!")),
+          );
+        }
       }
-
-      await FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(code)
-          .collection('members')
-          .doc(user!.uid)
-          .set({
-        'email': user!.email,
-        'joinedAt': FieldValue.serverTimestamp(),
-      });
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .collection('joinedRooms')
-          .doc(code)
-          .set({
-        'roomId': code,
-        'joinedAt': FieldValue.serverTimestamp(),
-      });
-
-      Navigator.pop(context);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Joined room successfully!")),
-      );
     } catch (e) {
       debugPrint("Error joining room: $e");
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to join room.")),
+        );
+      }
     }
 
-    setState(() => isLoading = false);
+    if (mounted) {
+      setState(() => isLoading = false);
+    }
   }
 
-   @override
+  @override
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: Colors.white,
-      // 1. Title from "Join Room", style from "Delete Room"
       title: const Text(
         'Join Room',
         textAlign: TextAlign.center,
@@ -79,13 +86,12 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
           fontWeight: FontWeight.w800,
         ),
       ),
-      // 2. Content is the TextField
       content: SizedBox(
         height: 50,
         child: TextField(
           controller: codeController,
           style: const TextStyle(fontSize: 12),
-          cursorColor: Color(0xFF443C36),
+          cursorColor: const Color(0xFF443C36),
           decoration: InputDecoration(
             labelText: "Enter Room Code",
             labelStyle: const TextStyle(color: Colors.grey, fontSize: 12),
@@ -94,28 +100,24 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
               borderRadius: BorderRadius.circular(12),
             ),
             enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFF443C36).withOpacity(0.3), width: 1.5),
+              borderSide: BorderSide(color: const Color(0xFF443C36).withOpacity(0.3), width: 1.5),
               borderRadius: BorderRadius.circular(12),
             ),
             floatingLabelStyle: const TextStyle(color: Color(0xFF443C36)),
           ),
         ),
       ),
-      // 3. Actions use the styled two-button layout
       actions: [
         Row(
           children: [
-            // "Cancel" button, styled like "No"
             Expanded(
               flex: 1,
               child: ElevatedButton(
-                onPressed: () => Navigator.pop(context), // Just pops
+                onPressed: () => Navigator.pop(context), 
                 style: ButtonStyle(
                   backgroundColor:
                       MaterialStateProperty.all(const Color(0xFFA27221)),
                   foregroundColor: MaterialStateProperty.all(Colors.white),
-                  // --- ADD THIS LINE ---
-                  // This makes the button fill the width of the Expanded
                   minimumSize:
                       MaterialStateProperty.all(const Size(double.infinity, 40)),
                   shape: MaterialStateProperty.all(
@@ -124,13 +126,12 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
                     ),
                   ),
                 ),
-                child: const Text('Cancel'),
+                child: const Text('No'),
               ),
             ),
             const SizedBox(
               width: 10,
             ),
-            // "Join" button, styled like "Yes"
             Expanded(
               flex: 1,
               child: ElevatedButton(
@@ -139,8 +140,6 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
                   backgroundColor: MaterialStateProperty.all(
                       const Color.fromARGB(255, 235, 200, 95)),
                   foregroundColor: MaterialStateProperty.all(Colors.white),
-                  // --- ADD THIS LINE ---
-                  // This makes the button fill the width of the Expanded
                   minimumSize:
                       MaterialStateProperty.all(const Size(double.infinity, 40)),
                   shape: MaterialStateProperty.all(
@@ -149,7 +148,6 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
                     ),
                   ),
                 ),
-                // Show loading indicator or text
                 child: isLoading
                     ? const SizedBox(
                         width: 18,
@@ -168,4 +166,3 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
     );
   }
 }
-

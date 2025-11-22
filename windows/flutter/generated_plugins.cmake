@@ -3,11 +3,17 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  app_links
   cloud_firestore
   file_selector_windows
   firebase_auth
   firebase_core
   firebase_storage
+  flutter_inappwebview_windows
+  irondash_engine_context
+  serious_python_windows
+  super_native_extensions
+  url_launcher_windows
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

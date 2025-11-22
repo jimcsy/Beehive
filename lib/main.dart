@@ -1,41 +1,55 @@
-import 'package:beehive/debug/add_module_debug.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'start/wrapper.dart';
-import 'start/google_sign_in.dart';
+import 'package:serious_python/serious_python.dart';
 
 
-void main() async {
+// 🌟 --- 1. IMPORT YOUR NEW FIREBASE FILE --- 🌟
+import 'firebase_options.dart'; 
+
+// 🌟 --- 2. ADD SUPABASE IMPORT --- 🌟
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+// Your app's existing files
+import 'app.dart';
+import 'python_ide/ide_test_screen.dart';
+
+// Your theme file
+import 'python_ide/ide_theme.dart';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  runApp(MyApp());
-}
+  
+  // --- 3. INITIALIZE FIREBASE (Correctly) ---
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+    await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
 
-  @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => GoogleSignInProvider(),
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Beehive',
-        theme: ThemeData(
-          primarySwatch: Colors.amber,
-          bottomNavigationBarTheme: BottomNavigationBarThemeData(
-          selectedItemColor: const Color(0xFFA27221), // Your selected icon color
-          unselectedItemColor: Colors.grey,           // Unselected icons
-          backgroundColor: Colors.white,              // Background color
-          enableFeedback: true,                       // Enable tap feedback
-          type: BottomNavigationBarType.fixed,        // Fixed type (optional)
-        ),
-        splashColor: Color(0xFFF4E3C2),                   // Ripple color when tapped
-        highlightColor: Color(0xFFF4E3C2).withOpacity(0.2), // Highlight when tapping
-        ),
-        home: Wrapper(), // This will listen for auth state
-      ),
-    );
-  }
+  // --- 4. 🌟 INITIALIZE SUPABASE --- 🌟
+  // Use `Supabase.initialize` (correct API) instead of `initializeApp`.
+  await Supabase.initialize(
+    url: 'https://mdfvotpfdlvqarftfixj.supabase.co', // 👈 Paste your Project URL here
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kZnZvdHBmZGx2cWFyZnRmaXhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwMzg3MzMsImV4cCI6MjA3ODYxNDczM30.JH0y-CevUEghtsEjn_l2S_vbTmOAreVMwg2fMXjwgkA', // 👈 Paste your anon key here
+  );
+  // ------------------------------------
+
+  // --- 5. INITIALIZE YOUR CODE THEME ---
+  await initIdeTheme(); // This is your function
+
+  // --- 6. START THE PYTHON SERVER ---
+  /*SeriousPython.run("assets/python_assets/final_bundle.zip", appFileName: "main.py").then((_) {
+    print("Python server process has started in the background.");
+  }).catchError((e) {
+    print("Error starting Python server in background: $e");
+  });*/
+
+  // --- 7. RUN YOUR APP ---
+  runApp(const MyApp());
 }
