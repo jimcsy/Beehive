@@ -50,6 +50,24 @@ class ModuleRepository {
                 doc as DocumentSnapshot<Map<String, dynamic>>))
             .toList());
   }
+  
+  // --- 🌟 NEW HELPER METHOD FOR PROGRESS GENERATION 🌟 ---
+  // Fetches lesson IDs once to build the initial progress map
+  Future<List<String>> getLessonIds(String moduleId) async {
+    try {
+      final snapshot = await _db
+          .collection('modules')
+          .doc(moduleId)
+          .collection('lessons')
+          .get();
+      
+      return snapshot.docs.map((doc) => doc.id).toList();
+    } catch (e) {
+      print('Error fetching lesson IDs: $e');
+      return [];
+    }
+  }
+  // -------------------------------------------------------
 
   Future<void> archiveLesson(String moduleId, String lessonId) async {
     try {
@@ -116,6 +134,4 @@ class ModuleRepository {
       rethrow;
     }
   }
-
-  
 }

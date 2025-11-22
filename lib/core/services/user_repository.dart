@@ -6,7 +6,6 @@ class UserRepository {
   final FirebaseFirestore _db;
   UserRepository(this._db);
 
-  // NEW METHOD: Updates the FCM token for the user (Kept for future use)
   Future<void> updateFCMToken(String uid, String? token) async {
     try {
       await _db.collection('users').doc(uid).update({
@@ -50,11 +49,6 @@ class UserRepository {
   }
 
   Stream<List<String>> getJoinedRoomIdsStream(String uid) {
-    // NOTE: Some older joinedRooms documents may not have the `isArchived`
-    // field set. Querying with `.where('isArchived', isEqualTo: false)` will
-    // exclude those documents. To be robust we fetch all joinedRooms and
-    // perform the archive filtering client-side so documents missing the flag
-    // are treated as active (not archived).
     return _db
         .collection('users')
         .doc(uid)
@@ -62,13 +56,6 @@ class UserRepository {
         .where('isArchived', isEqualTo: false)
         .snapshots()
         .map((snapshot) {
-      // Debug: log counts to help troubleshoot empty lists
-      try {
-        // Print useful debug info during development
-        // ignore: avoid_print
-        print('getJoinedRoomIdsStream: found ${snapshot.docs.length} joinedRooms for user=$uid');
-      } catch (_) {}
-
       return snapshot.docs
           .map((doc) {
             return doc.id; 
@@ -76,6 +63,66 @@ class UserRepository {
           .toList();
     });
   }
+
+  // --- 🌟 NEW METHOD: INITIALIZE PROGRESS WHEN JOINING ROOM 🌟 ---
+  Future<void> initializeProgressForRoom(String uid, String roomId) async {
+    try {
+      final roomModulesSnapshot = await _db
+          .collection('rooms')
+          .doc(roomId)
+          .collection('modules')
+          .get();
+
+      if (roomModulesSnapshot.docs.isEmpty) return;
+
+      final batch = _db.batch();
+
+      for (var moduleDoc in roomModulesSnapshot.docs) {
+        final moduleId = moduleDoc.id;
+        
+        // 🌟 FIX: Create a Composite ID (RoomID_ModuleID)
+        final uniqueProgressId = '${roomId}_$moduleId';
+
+        final progressRef = _db
+            .collection('users')
+            .doc(uid)
+            .collection('progress')
+            .doc(uniqueProgressId); // <--- USING UNIQUE ID HERE
+            
+        final progressSnap = await progressRef.get();
+        if (progressSnap.exists) continue; 
+
+        // ... rest of the logic remains the same ...
+        final lessonsSnapshot = await _db
+            .collection('modules')
+            .doc(moduleId)
+            .collection('lessons')
+            .get();
+
+        final Map<String, bool> lessonsMap = {};
+        for (var lesson in lessonsSnapshot.docs) {
+          lessonsMap[lesson.id] = false; 
+        }
+
+        final progressData = {
+          'moduleId': moduleId,
+          'roomId': roomId, 
+          'completed': false,
+          'lessons': lessonsMap,
+          'startedAt': FieldValue.serverTimestamp(),
+        };
+
+        batch.set(progressRef, progressData);
+      }
+
+      await batch.commit();
+      print("✅ Progress initialized for room $roomId with unique IDs");
+
+    } catch (e) {
+      print("❌ Error initializing progress: $e");
+    }
+  }
+  // ---------------------------------------------------------------
 
   Future<RecentModuleModel?> getRecentModule(String uid) async {
     try {
@@ -176,7 +223,6 @@ class UserRepository {
     await batch.commit();
   }
 
-  // NEW METHOD: Sends notifications for room unarchiving
   Future<void> sendRoomUnarchiveNotifications({
     required String roomId,
     required String className,

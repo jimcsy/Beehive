@@ -7,12 +7,18 @@ import 'package:beehive/features/students/modules/progress_service.dart';
 // 1. THE PARENT SCREEN (Handles Navigation & Data Fetching)
 // -----------------------------------------------------------------------------
 class DragDropGameScreen extends StatefulWidget {
-  // 🌟 CHANGE: Accept a LIST of IDs
   final List<String> contentIDs;
   final String moduleId;
+  final String roomId;
   final String lessonId;
 
-  const DragDropGameScreen({Key? key, required this.contentIDs, required this.moduleId, required this.lessonId}) : super(key: key);
+  const DragDropGameScreen({
+    Key? key,
+    required this.contentIDs,
+    required this.moduleId,
+    required this.roomId,
+    required this.lessonId,
+  }) : super(key: key);
 
   @override
   _DragDropGameScreenState createState() => _DragDropGameScreenState();
@@ -21,7 +27,6 @@ class DragDropGameScreen extends StatefulWidget {
 class _DragDropGameScreenState extends State<DragDropGameScreen> {
   final PageController _pageController = PageController();
   int _currentPageIndex = 0;
-  
   late final Future<List<Map<String, dynamic>>> _fetchActivities;
   
   // Track if the CURRENT page is solved to enable the Next button
@@ -65,10 +70,10 @@ class _DragDropGameScreenState extends State<DragDropGameScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Activity", style: TextStyle(color: Colors.black)),
+        title: const Text("Activity", style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: BackButton(color: Colors.black),
+        leading: const BackButton(color: Colors.black),
       ),
       backgroundColor: Colors.white,
       
@@ -76,10 +81,10 @@ class _DragDropGameScreenState extends State<DragDropGameScreen> {
         future: _fetchActivities,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(child: Text('Error loading activities.'));
+            return const Center(child: Text('Error loading activities.'));
           }
 
           final pages = snapshot.data!;
@@ -89,8 +94,7 @@ class _DragDropGameScreenState extends State<DragDropGameScreen> {
               Expanded(
                 child: PageView.builder(
                   controller: _pageController,
-                  // 🔒 Disable swipe so they MUST solve it to click Next
-                  physics: NeverScrollableScrollPhysics(), 
+                  physics: const NeverScrollableScrollPhysics(), // Disable swipe
                   itemCount: pages.length,
                   onPageChanged: (index) {
                     setState(() {
@@ -99,21 +103,33 @@ class _DragDropGameScreenState extends State<DragDropGameScreen> {
                     });
                   },
                   itemBuilder: (context, index) {
-                    // 🌟 Render the specific game for this page
-                    return SingleDragDropGame(
-                      data: pages[index],
-                      onSolved: () {
-                        // ✅ Enable button when child says it's solved
-                        setState(() {
-                          _isCurrentPageSolved = true;
-                        });
-                      },
-                    );
+                    final activityData = pages[index];
+                    
+                    // 🔍 FIX: Check the 'type' column from your database
+                    final String type = activityData['type'] ?? '';
+
+                    if (type == 'STATEMENT_COMPLETION') {
+                       // --- NEW UI FOR FILL IN THE BLANK ---
+                       return CompleteStatementGame(
+                        data: activityData,
+                        onSolved: () {
+                          setState(() => _isCurrentPageSolved = true);
+                        },
+                      );
+                    } else {
+                      // --- DEFAULT TO DRAG & DROP ---
+                      return SingleDragDropGame(
+                        data: activityData,
+                        onSolved: () {
+                          setState(() => _isCurrentPageSolved = true);
+                        },
+                      );
+                    }
                   },
                 ),
               ),
               
-              // 🌟 YOUR NAVIGATION CONTROLS 🌟
+              // Navigation Controls (Prev/Next)
               _buildNavigationControls(pages.length),
             ],
           );
@@ -130,15 +146,15 @@ class _DragDropGameScreenState extends State<DragDropGameScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey[300]!)),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // --- PREV ---
           ElevatedButton.icon(
-            icon: Icon(Icons.arrow_back, color: Colors.black),
-            label: Text('Prev', style: TextStyle(color: Colors.black)),
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            label: const Text('Prev', style: TextStyle(color: Colors.black)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white, 
               elevation: 0,
@@ -146,7 +162,7 @@ class _DragDropGameScreenState extends State<DragDropGameScreen> {
             ),
             onPressed: _currentPageIndex == 0 ? null : () {
               _pageController.previousPage(
-                duration: Duration(milliseconds: 300),
+                duration: const Duration(milliseconds: 300),
                 curve: Curves.easeOut,
               );
             },
@@ -159,34 +175,32 @@ class _DragDropGameScreenState extends State<DragDropGameScreen> {
           
           // --- NEXT / DONE ---
           ElevatedButton.icon(
-            icon: Icon(Icons.arrow_forward),
+            icon: const Icon(Icons.arrow_forward),
             label: Text(isLastPage ? 'Done' : 'Next'),
             style: ElevatedButton.styleFrom(
-              // Gold if solved, Grey if not
               backgroundColor: _isCurrentPageSolved 
-                  ? Color(0xFFE8A319) 
+                  ? const Color(0xFFE8A319) 
                   : Colors.grey[300],
               disabledBackgroundColor: Colors.grey[300],
               foregroundColor: Colors.white,
             ),
-            // Disable button if not solved yet
             onPressed: !_isCurrentPageSolved 
               ? null 
               : () async {
                   if (isLastPage) {
-                    // Save progress before leaving
                     try {
                       await ProgressService().markLessonAsCompleted(
+                        roomId: widget.roomId,
                         moduleId: widget.moduleId,
                         lessonId: widget.lessonId,
                       );
                     } catch (e) {
                       print('Failed to mark lesson complete: $e');
                     }
-                    Navigator.of(context).pop(); // Done
+                    Navigator.of(context).pop();
                   } else {
                     _pageController.nextPage(
-                      duration: Duration(milliseconds: 300),
+                      duration: const Duration(milliseconds: 300),
                       curve: Curves.easeOut,
                     );
                   }
@@ -199,17 +213,208 @@ class _DragDropGameScreenState extends State<DragDropGameScreen> {
 }
 
 // -----------------------------------------------------------------------------
-// 2. THE CHILD WIDGET (The Actual Game Logic)
+// 2. NEW WIDGET: COMPLETE THE STATEMENT (Tap to Fill)
+// -----------------------------------------------------------------------------
+class CompleteStatementGame extends StatefulWidget {
+  final Map<String, dynamic> data;
+  final VoidCallback onSolved;
+
+  const CompleteStatementGame({Key? key, required this.data, required this.onSolved}) : super(key: key);
+
+  @override
+  _CompleteStatementGameState createState() => _CompleteStatementGameState();
+}
+
+class _CompleteStatementGameState extends State<CompleteStatementGame> {
+  late String _questionText;
+  late Map<String, dynamic> _choices;
+  late String _correctAnswerKey;
+  
+  String? _selectedAnswer;
+  bool? _isCorrect;
+
+  @override
+  void initState() {
+    super.initState();
+    // 🔍 FIX: Use 'questionText' which contains the full sentence in your DB
+    _questionText = widget.data['questionText'] ?? "Complete the statement.";
+    _choices = widget.data['choices'] ?? {};
+    _correctAnswerKey = widget.data['correctAnswer'] ?? "";
+  }
+
+  void _handleOptionTap(String key, String value) {
+    if (_isCorrect == true) return; // Already solved
+
+    setState(() {
+      _selectedAnswer = value;
+      if (key == _correctAnswerKey) {
+        _isCorrect = true;
+        widget.onSolved();
+      } else {
+        _isCorrect = false;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Split based on a delimiter if your DB has one (e.g. "Python can ___ connect").
+    // If your DB text is just "Question: What can Python NOT do?", we might not find '___'.
+    // So we handle both cases.
+    
+    List<String> parts = _questionText.split('___');
+    String startText = parts.isNotEmpty ? parts[0] : _questionText;
+    String endText = parts.length > 1 ? parts[1] : "";
+    
+    // If no "___" was found, maybe we just want to show the question above the box
+    bool hasBlank = parts.length > 1;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Select the correct answer",
+            style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey),
+          ),
+          const SizedBox(height: 20),
+
+          // --- THE SENTENCE / QUESTION CONTAINER ---
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF8E1), // Light yellow background
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE8A319), width: 1.5),
+            ),
+            child: hasBlank 
+            ? Wrap( // Case 1: Sentence with a blank
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    startText,
+                    style: GoogleFonts.poppins(fontSize: 18, height: 1.5, color: Colors.black87),
+                  ),
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _selectedAnswer == null 
+                          ? Colors.white 
+                          : (_isCorrect == true ? Colors.green : Colors.red),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade400),
+                    ),
+                    child: Text(
+                      _selectedAnswer ?? "   ?   ",
+                      style: GoogleFonts.poppins(
+                        fontSize: 18, 
+                        fontWeight: FontWeight.bold,
+                        color: _selectedAnswer == null ? Colors.grey.shade300 : Colors.white
+                      ),
+                    ),
+                  ),
+                  Text(
+                    endText,
+                    style: GoogleFonts.poppins(fontSize: 18, height: 1.5, color: Colors.black87),
+                  ),
+                ],
+              )
+            : Column( // Case 2: Direct Question (No blank found)
+                children: [
+                   Text(
+                    startText,
+                    style: GoogleFonts.poppins(fontSize: 18, height: 1.5, color: Colors.black87, fontWeight: FontWeight.w600),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 15),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _selectedAnswer == null 
+                          ? Colors.white 
+                          : (_isCorrect == true ? Colors.green : Colors.red),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade400),
+                    ),
+                     child: Text(
+                      _selectedAnswer ?? "Tap an answer below",
+                      style: GoogleFonts.poppins(
+                        fontSize: 16, 
+                        fontWeight: FontWeight.bold,
+                        color: _selectedAnswer == null ? Colors.grey.shade400 : Colors.white
+                      ),
+                    ),
+                  )
+                ],
+              ),
+          ),
+          
+          const SizedBox(height: 30),
+
+          // --- FEEDBACK ---
+          Center(
+            child: Text(
+              _isCorrect == true 
+                  ? "Correct!" 
+                  : (_isCorrect == false ? "Try again!" : "Tap the correct option below"),
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.bold,
+                color: _isCorrect == true ? Colors.green : (_isCorrect == false ? Colors.red : Colors.grey),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+
+          // --- OPTIONS GRID ---
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 1, // Full width list for longer text answers
+            childAspectRatio: 4.5, // Adjusted for list look
+            mainAxisSpacing: 12,
+            children: _choices.keys.map((key) {
+              return InkWell(
+                onTap: () => _handleOptionTap(key, _choices[key]),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
+                    ],
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "${key.toUpperCase()}.  ${_choices[key]}",
+                      style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// 3. EXISTING WIDGET: DRAG AND DROP (Kept exactly as is)
 // -----------------------------------------------------------------------------
 class SingleDragDropGame extends StatefulWidget {
   final Map<String, dynamic> data;
-  final VoidCallback onSolved; // Tell parent we finished
+  final VoidCallback onSolved;
 
-  const SingleDragDropGame({
-    Key? key, 
-    required this.data, 
-    required this.onSolved
-  }) : super(key: key);
+  const SingleDragDropGame({Key? key, required this.data, required this.onSolved}) : super(key: key);
 
   @override
   _SingleDragDropGameState createState() => _SingleDragDropGameState();
@@ -227,9 +432,8 @@ class _SingleDragDropGameState extends State<SingleDragDropGame> {
   @override
   void initState() {
     super.initState();
-    // Load data from the passed Map
     _questionText = widget.data['questionText'] ?? "";
-    _sampleCode = widget.data['sampleCode'] ?? "";
+    _sampleCode = widget.data['sampleCode'] ?? ""; // Fallback if null
     _choices = widget.data['choices'] ?? {};
     _correctAnswerKey = widget.data['correctAnswer'] ?? "";
   }
@@ -237,10 +441,9 @@ class _SingleDragDropGameState extends State<SingleDragDropGame> {
   void _onItemDropped(String key, String value) {
     setState(() {
       _droppedValue = value;
-      
       if (key == _correctAnswerKey) {
         _isCorrect = true;
-        widget.onSolved(); // 🎉 Notify parent that we won!
+        widget.onSolved();
       } else {
         _isCorrect = false;
       }
@@ -254,19 +457,13 @@ class _SingleDragDropGameState extends State<SingleDragDropGame> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Question
           Text(
             _questionText,
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          SizedBox(height: 20),
-
-          // 2. Code Box (Drop Target)
+          const SizedBox(height: 20),
           _buildCodeContainer(),
-
-          SizedBox(height: 40),
-
-          // 3. Feedback
+          const SizedBox(height: 40),
           Center(
             child: Text(
               _isCorrect == true 
@@ -279,10 +476,7 @@ class _SingleDragDropGameState extends State<SingleDragDropGame> {
               ),
             ),
           ),
-
-          SizedBox(height: 20),
-
-          // 4. Choices
+          const SizedBox(height: 20),
           _buildChoicesStack(),
         ],
       ),
@@ -290,13 +484,14 @@ class _SingleDragDropGameState extends State<SingleDragDropGame> {
   }
 
   Widget _buildCodeContainer() {
-    List<String> parts = _sampleCode.split('___');
+    // If sampleCode is null or empty, default to just showing a drop box
+    List<String> parts = _sampleCode.isNotEmpty ? _sampleCode.split('___') : [];
     
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Color(0xFF2b2b2b), 
+        color: const Color(0xFF2b2b2b), 
         borderRadius: BorderRadius.circular(12),
       ),
       child: Wrap(
@@ -309,8 +504,8 @@ class _SingleDragDropGameState extends State<SingleDragDropGame> {
             onAccept: (key) => _onItemDropped(key, _choices[key]),
             builder: (context, candidate, rejected) {
               return Container(
-                margin: EdgeInsets.symmetric(horizontal: 4),
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
                   color: _isCorrect == true 
                       ? Colors.green.withOpacity(0.2) 
@@ -360,13 +555,13 @@ class _SingleDragDropGameState extends State<SingleDragDropGame> {
   Widget _buildChoiceCard(String text, {bool isDragging = false}) {
     return Container(
       width: double.infinity, 
-      padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       decoration: BoxDecoration(
         color: isDragging ? Colors.blue.withOpacity(0.9) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade300),
         boxShadow: [
-          if (!isDragging) BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: Offset(0, 2))
+          if (!isDragging) BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
         ],
       ),
       child: Center(

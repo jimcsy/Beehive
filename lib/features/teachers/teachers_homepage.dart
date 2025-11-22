@@ -97,7 +97,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                 itemBuilder: (context, index) {
                   final room = rooms[index];
                   final className = room.className;
-                  final subject = room.subject;
+                  final subject = room.subject ?? ''; // Handle nullable subject
                   final section = room.section;
                   final roomId = room.id;
 
@@ -184,19 +184,18 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                // Archive option - NEW
+                                                // Archive option
                                                 GestureDetector(
                                                   onTap: () {
                                                     Navigator.pop(context); // Close modal
                                                     Navigator.push(
                                                       context,
                                                       MaterialPageRoute(
-                                                        // FIX: Navigates to the singular action page
                                                         builder: (context) => ArchiveRoomPage( 
                                                           roomId: roomId,
                                                           className: className,
-                                                          subject: subject, // PASSING SUBJECT
-                                                          teacherName: widget.userModel.fullName, // PASSING TEACHER NAME
+                                                          subject: subject, 
+                                                          teacherName: widget.userModel.fullName, 
                                                         ),
                                                       ),
                                                     );
@@ -204,7 +203,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                                                   child: const Row(
                                                     children: [
                                                       Icon(Icons.archive_outlined,
-                                                          color: Color(0xFFE8A319)), // Gold/Orange color
+                                                          color: Color(0xFFE8A319)), 
                                                       SizedBox(width: 10),
                                                       Text(
                                                         "Archive Room",
@@ -217,28 +216,24 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                                                     ],
                                                   ),
                                                 ),
-                                                const SizedBox(height: 16), // Separator
+                                                const SizedBox(height: 16), 
 
-                                                // Delete option - CLEANED UP
+                                                // Delete option
                                                 GestureDetector(
                                                   onTap: () async {
-                                                    // --- 1. Get necessary variables before context dies ---
                                                     final firestoreService = Provider.of<FirestoreService>(context, listen: false);
                                                     final scaffoldMessenger = ScaffoldMessenger.of(context);
                                                     final navigator = Navigator.of(context); 
                                                     final teacherName = widget.userModel.fullName;
 
-                                                    // --- 2. Now, pop the modal ---
                                                     navigator.pop(); 
 
-                                                    // --- 3. Show the confirmation dialog ---
                                                     final confirm = await _showConfirmationDialog(
                                                       navigator.context,
                                                       'Delete Room',
                                                       'Are you sure you want to delete "$className"?',
                                                     );
 
-                                                    // --- 4. Perform the delete using the local variables ---
                                                     if (confirm ?? false) {
                                                       try {
                                                         await notifyStudentsOnRoomDelete(
@@ -309,7 +304,6 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
         ProfilePage(onGoToHome: () => _onItemTapped(0)),
       ];
 
-  // This function is already clean, no changes needed
   Future<void> signout() async {
     try {
       final googleProvider =
@@ -326,15 +320,11 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
     }
   }
 
-  // --- REFACTORED BUILD METHOD ---
   @override
   Widget build(BuildContext context) {
-    // Get the service from Provider
     final firestoreService = Provider.of<FirestoreService>(context, listen: false);
 
-    // Use the service to get the stream of clean List<RoomModel>
     return StreamBuilder<List<RoomModel>>(
-      // Stream filters out archived rooms (implemented in RoomRepository)
       stream: firestoreService.rooms.getTeacherRoomsStream(widget.userModel.uid),
       builder: (context, roomSnapshot) {
         if (roomSnapshot.connectionState == ConnectionState.waiting) {
@@ -346,15 +336,28 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
               body: Center(child: Text('Error loading rooms.')));
         }
 
-        // The data is now a clean List<RoomModel>!
         final rooms = roomSnapshot.data ?? [];
 
         return Scaffold(
           backgroundColor: Colors.white,
+          // --- DRAWER IMPLEMENTATION WITH FIX ---
           drawer: UserDrawer(
             userModel: widget.userModel, 
             rooms: rooms, 
             onSignOut: signout,
+            // FIX: When a teacher clicks a room in Drawer, navigate to Room View
+            onRoomSelected: (room) {
+               Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ViewRoomPage(
+                    roomId: room.id,
+                    className: room.className,
+                    subject: room.subject ?? '',
+                  ),
+                ),
+              );
+            },
           ),
           appBar: _selectedIndex == 3
               ? null
@@ -371,7 +374,6 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                   title: Text(
                       ['Home', 'Modules', 'Notifications', 'Profile'][_selectedIndex]),
                   
-                  // NEW: Add Archive action button only on the Home tab (index 0)
                   actions: _selectedIndex == 0
                       ? [
                           IconButton(
@@ -381,7 +383,6 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  // Navigate to the dedicated Archive List Page
                                   builder: (context) => const ArchivedRoomsPage(), 
                                 ),
                               );
@@ -391,7 +392,6 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                         ]
                       : null,
                 ),
-          // Pass the clean 'rooms' list to the _pages builder
           body: _pages(rooms)[_selectedIndex],
           floatingActionButton: _selectedIndex == 0
               ? HexFloatingButton(

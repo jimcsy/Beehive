@@ -9,14 +9,14 @@ import 'package:provider/provider.dart';
 
 class StudentRoomPage extends StatefulWidget {
   final void Function(String roomId, String moduleId)? onModuleSelected;
-  
-  // It MUST accept the userModel from StudentHomePage
-  final UserModel userModel; 
+  final UserModel userModel;
+  final String? initialRoomId; 
 
   const StudentRoomPage({
     super.key,
     this.onModuleSelected,
-    required this.userModel, // It is required
+    required this.userModel,
+    this.initialRoomId,
   });
 
   @override
@@ -24,17 +24,94 @@ class StudentRoomPage extends StatefulWidget {
 }
 
 class _StudentRoomPageState extends State<StudentRoomPage> {
+  bool _autoOpened = false;
   
+  // 🌟 NEW: Track if we are currently processing an auto-open
+  bool _isLoadingAutoOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAutoOpen();
+  }
+
+  @override
+  void didUpdateWidget(covariant StudentRoomPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If the ID changed (e.g. user clicked a different room in drawer)
+    if (widget.initialRoomId != oldWidget.initialRoomId && widget.initialRoomId != null) {
+      _autoOpened = false; 
+      _checkAutoOpen();
+    }
+  }
+
+  void _checkAutoOpen() {
+    if (widget.initialRoomId != null && !_autoOpened) {
+      // 🌟 START LOADING IMMEDIATELY
+      setState(() => _isLoadingAutoOpen = true);
+      
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _openFirstModuleForRoom(widget.initialRoomId!);
+      });
+    }
+  }
+
+  Future<void> _openFirstModuleForRoom(String roomId) async {
+    if (_autoOpened || !mounted) return;
+    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+
+    try {
+      final List<String> moduleIds =
+          await firestoreService.modules.getLinkedModuleIdsStream(roomId).first;
+
+      if (moduleIds.isNotEmpty) {
+        final String firstModuleId = moduleIds.first;
+
+        try {
+          await firestoreService.users.setRecentModule(
+            widget.userModel.uid,
+            roomId,
+            firstModuleId,
+            '', 
+          );
+        } catch (_) {}
+
+        if (mounted) {
+          setState(() => _autoOpened = true);
+          
+          if (widget.onModuleSelected != null) {
+            widget.onModuleSelected!(roomId, firstModuleId);
+          }
+        }
+      } else {
+        setState(() => _autoOpened = true);
+      }
+    } catch (e) {
+      debugPrint('Error auto-opening module for room $roomId: $e');
+      setState(() => _autoOpened = true);
+    } finally {
+      // 🌟 STOP LOADING WHEN DONE
+      if (mounted) {
+        setState(() => _isLoadingAutoOpen = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Get the service once
+    // 🌟 FIX: If we are processing a room click, show spinner instead of list
+    if (_isLoadingAutoOpen) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final firestoreService = Provider.of<FirestoreService>(context, listen: false);
 
     return Scaffold(
       backgroundColor: Colors.white,
-      // This body is now refactored to use efficient streams
       body: StreamBuilder<List<String>>(
-        // 1. Get the list of joined room IDs
         stream: firestoreService.users.getJoinedRoomIdsStream(widget.userModel.uid),
         builder: (context, idSnapshot) {
           if (idSnapshot.connectionState == ConnectionState.waiting) {
@@ -46,7 +123,6 @@ class _StudentRoomPageState extends State<StudentRoomPage> {
 
           final roomIds = idSnapshot.data!;
 
-          // 2. Get the list of RoomModel objects from the IDs
           return StreamBuilder<List<RoomModel>>(
             stream: firestoreService.rooms.getRoomsStream(roomIds),
             builder: (context, roomSnapshot) {
@@ -56,18 +132,20 @@ class _StudentRoomPageState extends State<StudentRoomPage> {
 
               final rooms = roomSnapshot.data!;
 
-              // 3. Build the list using the clean List<RoomModel>
               return ListView.builder(
                 padding: const EdgeInsets.all(8),
                 itemCount: rooms.length,
                 itemBuilder: (context, index) {
                   final room = rooms[index];
-                  
-                  // 4. Pass the full, clean models to the card
+
                   return RoomExpansionCard(
                     room: room,
                     userModel: widget.userModel,
-                    onModuleSelected: widget.onModuleSelected,
+                    onModuleSelected: (roomId, moduleId) {
+                      if (widget.onModuleSelected != null) {
+                        widget.onModuleSelected!(roomId, moduleId);
+                      }
+                    },
                   );
                 },
               );
@@ -86,7 +164,6 @@ class _StudentRoomPageState extends State<StudentRoomPage> {
             builder: (context) => Dialog(
               backgroundColor: Colors.transparent,
               insetPadding: const EdgeInsets.all(16),
-              // Pass the userModel to the dialog
               child: JoinRoomDialog(userModel: widget.userModel),
             ),
           );
@@ -96,9 +173,7 @@ class _StudentRoomPageState extends State<StudentRoomPage> {
   }
 }
 
-//
-// REFACTORED RoomExpansionCard
-//
+// ... (The RoomExpansionCard class remains exactly the same) ...
 class RoomExpansionCard extends StatefulWidget {
   final RoomModel room;
   final UserModel userModel;
@@ -129,7 +204,7 @@ class _RoomExpansionCardState extends State<RoomExpansionCard> {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          // 1. HEADER (Fetches professor's name cleanly)
+          // 1. HEADER 
           FutureBuilder<UserModel?>(
             future: Provider.of<FirestoreService>(context, listen: false)
                 .users
@@ -179,7 +254,7 @@ class _RoomExpansionCardState extends State<RoomExpansionCard> {
                                 style: const TextStyle(
                                     color: Colors.white, fontSize: 13),
                               ),
-                              SizedBox(height: 20),
+                              const SizedBox(height: 20),
                               Text(
                                 profName,
                                 style: const TextStyle(
@@ -203,7 +278,7 @@ class _RoomExpansionCardState extends State<RoomExpansionCard> {
             },
           ),
 
-          // 2. BODY (The animated expandable part)
+          // 2. BODY
           AnimatedCrossFade(
             firstChild: Container(),
             secondChild: Container(
@@ -219,11 +294,9 @@ class _RoomExpansionCardState extends State<RoomExpansionCard> {
     );
   }
 
-  // 10. REFACTORED Expandable Children
   Widget _buildExpandableChildren() {
     final firestoreService = Provider.of<FirestoreService>(context, listen: false);
 
-    // 1. Stream the linked module IDs
     return StreamBuilder<List<String>>(
       stream: firestoreService.modules.getLinkedModuleIdsStream(widget.room.id),
       builder: (context, idSnapshot) {
@@ -243,7 +316,6 @@ class _RoomExpansionCardState extends State<RoomExpansionCard> {
 
         final moduleIds = idSnapshot.data!;
 
-        // 2. Stream the ModuleModel objects from the IDs
         return StreamBuilder<List<ModuleModel>>(
           stream: firestoreService.modules.getModulesByIdsStream(moduleIds),
           builder: (context, moduleSnapshot) {
@@ -256,7 +328,6 @@ class _RoomExpansionCardState extends State<RoomExpansionCard> {
 
             final modules = moduleSnapshot.data!;
 
-            // 3. Build the list of modules
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Column(
@@ -279,7 +350,6 @@ class _RoomExpansionCardState extends State<RoomExpansionCard> {
                         ),
                       ),
                       onTap: () async {
-                        // 4. Call the service to set the recent module
                         await firestoreService.users.setRecentModule(
                           widget.userModel.uid,
                           widget.room.id,

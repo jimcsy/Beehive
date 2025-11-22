@@ -11,17 +11,22 @@ import 'package:beehive/core/models/room_model.dart';
 import '../teachers/module_page.dart';
 import 'settings_page.dart';
 import 'about_page.dart';
+// Note: We removed the direct imports for StudentRoomPage here because 
+// the Parent/Home screen should handle displaying that widget now.
 
 class UserDrawer extends StatelessWidget {
   final UserModel userModel;
   final List<RoomModel> rooms;
   final VoidCallback onSignOut;
+  // NEW: Callback to tell the Home Screen which room was clicked
+  final Function(RoomModel room) onRoomSelected; 
 
   const UserDrawer({
     super.key,
     required this.userModel,
     required this.rooms,
     required this.onSignOut,
+    required this.onRoomSelected, // Required now
   });
 
   void _navigateTo(BuildContext context, Widget screen) {
@@ -32,6 +37,22 @@ class UserDrawer extends StatelessWidget {
     );
   }
 
+  bool _detectIsTeacher() {
+    try {
+      final dynamic um = userModel as dynamic;
+      if (um.isTeacher != null) {
+        return um.isTeacher == true;
+      }
+      if (um.role != null) {
+        final String r = um.role.toString().toLowerCase();
+        return r == 'teacher' || r == 'instructor' || r == 'admin';
+      }
+    } catch (_) {
+      // ignore
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final String displayName = userModel.fullName;
@@ -39,7 +60,11 @@ class UserDrawer extends StatelessWidget {
     final String firstInitial = userModel.firstName.isNotEmpty
         ? userModel.firstName[0].toUpperCase()
         : 'U';
-    final String? photoURL = null; // We don't have this in our model yet
+    final String? photoURL = null;
+
+    // We still detect teacher to adjust logic if needed, 
+    // but mainly we want to use the callback.
+    final bool isTeacher = _detectIsTeacher();
 
     return Drawer(
       child: Container(
@@ -85,8 +110,9 @@ class UserDrawer extends StatelessWidget {
                                 child: CircleAvatar(
                                   radius: 35,
                                   backgroundColor: Colors.white70,
-                                  backgroundImage:
-                                      photoURL != null ? NetworkImage(photoURL) : null,
+                                  backgroundImage: photoURL != null
+                                      ? NetworkImage(photoURL)
+                                      : null,
                                   child: photoURL == null
                                       ? Text(
                                           firstInitial,
@@ -138,6 +164,8 @@ class UserDrawer extends StatelessWidget {
                     title: const Text('Rooms', style: TextStyle(fontSize: 14)),
                     onTap: () {
                       Navigator.pop(context);
+                      // Optional: Call onRoomSelected with null or a specific logic 
+                      // if you want "Rooms" to reset the view to the list.
                     },
                   ),
 
@@ -152,17 +180,20 @@ class UserDrawer extends StatelessWidget {
                       ),
                       title: Text(
                         room.className,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                       subtitle: Text(
                         room.section,
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w400)
+                        style: const TextStyle(
+                            fontSize: 10, fontWeight: FontWeight.w400),
                       ),
                       onTap: () {
-                        // --- THIS IS THE FIX ---
-                        // Removed 'const' because widget.userModel is a variable
-                        _navigateTo(context, ModulesPage(userModel: userModel));
-                        // --- END OF FIX ---
+                        // --- FIX IS HERE ---
+                        Navigator.pop(context); // Close the drawer
+                        
+                        // Instead of Navigator.push, we pass the data back to the Home Screen
+                        onRoomSelected(room); 
                       },
                     );
                   }).toList(),

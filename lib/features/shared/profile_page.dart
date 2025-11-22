@@ -16,7 +16,7 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final User? currentUser = FirebaseAuth.instance.currentUser;
-  late final Future<DocumentSnapshot> _userFuture;
+  late Future<DocumentSnapshot> _userFuture; // Removed 'final' to allow reassignment
 
   @override
   void initState() {
@@ -38,16 +38,16 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!doc.exists) {
       // 1. NEW USER:
       // Document doesn't exist, create it.
-      // We'll save the Gmail PFP (currentUser!.photoURL) right away.
       try {
         await userRef.set({
           'displayName': currentUser!.displayName,
           'email': currentUser!.email,
-          'photoURL': currentUser!.photoURL, // <-- Saves the Gmail PFP
-          'role': 'student', // Default role
+          'photoURL': currentUser!.photoURL, 
+          'role': 'student', 
           'createdAt': FieldValue.serverTimestamp(),
-          //'firstName': '', // You can pre-fill these if you want
-          //'lastName': '',
+          // FIX: Explicitly initialize firstName and lastName for consistency
+          'firstName': '', 
+          'lastName': '',
         });
         // Return the new document we just created
         return await userRef.get();
@@ -56,21 +56,23 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     } else {
       // 2. EXISTING USER:
-      // Document EXISTS. We need to check if it's missing data.
+      // Document EXISTS. We need to check if it's missing data or display name.
       final userData = doc.data() as Map<String, dynamic>? ?? {};
       Map<String, dynamic> dataToUpdate = {};
 
-      // CHECK: Is the photoURL null in our database?
+      // CHECK 1: Is the photoURL null in our database?
       if (userData['photoURL'] == null && currentUser!.photoURL != null) {
-        // YES. The user has a Gmail PFP, but it's not in our database.
-        // Let's update it.
         dataToUpdate['photoURL'] = currentUser!.photoURL;
       }
-
-      // You can add more checks here if you want
-      // if (userData['displayName'] == null && currentUser!.displayName != null) {
-      //   dataToUpdate['displayName'] = currentUser!.displayName;
-      // }
+      
+      // CHECK 2: Does firstName/lastName exist? If not, initialize.
+      // This handles old accounts created before the fields were added.
+      if (userData['firstName'] == null) {
+        dataToUpdate['firstName'] = '';
+      }
+      if (userData['lastName'] == null) {
+        dataToUpdate['lastName'] = '';
+      }
 
       // If we found any missing data, update the document
       if (dataToUpdate.isNotEmpty) {
@@ -101,28 +103,27 @@ class _ProfilePageState extends State<ProfilePage> {
           if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
             return const Center(child: Text('Error loading profile.'));
           }
-
-          final userData = snapshot.data!.data() as Map<String, dynamic>?;
-          final String firstName = userData?['firstName'] ?? '';
-          final String lastName = userData?['lastName'] ?? '';
+          
+          // Data is guaranteed to exist here
+          final userData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+          // Use ?? '' for robust null handling, although the future should ensure this.
+          final String firstName = userData['firstName'] ?? '';
+          final String lastName = userData['lastName'] ?? '';
 
           // Combine them for display, with a fallback
           final String displayName = (firstName.isNotEmpty || lastName.isNotEmpty)
               ? '$firstName $lastName'.trim()
               : 'Student Name';
-          final email = userData?['email'] ?? 'student.email@example.com';
-          final photoURL = userData?['photoURL'];
+          final email = userData['email'] ?? 'student.email@example.com';
+          final photoURL = userData['photoURL'];
 
           // The main widget is a Stack to layer all elements
           return Stack(
             children: [
               // --- START OF NEW LAYOUT ---
-              // This Column now replaces the SingleChildScrollView
-              // It holds BOTH the static info and the scrollable list
               Column(
                 children: [
                   // 1. STATIC (NON-SCROLLING) PART
-                  // We use Padding to push this content down below the PFP
                   Padding(
                     padding: const EdgeInsets.only(top: 290),
                     child: Column(
@@ -148,13 +149,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
 
                   // 2. SCROLLABLE (DYNAMIC) PART
-                  // Expanded tells this section to take all *remaining* space
                   Expanded(
                     child: SingleChildScrollView(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
-                          // This makes the section headers align left
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             _buildSectionHeader('Badges'),
@@ -172,19 +171,19 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               // --- END OF NEW LAYOUT ---
 
-              // 3. The header background (NO CHANGE)
+              // 3. The header background
               Positioned(
                 top: 0,
                 left: 0,
                 right: 0,
                 child: Image.asset(
-                  'assets/icons/rectangle.png', // Using your asset
-                  height: 265, // Adjust height as needed
+                  'assets/icons/rectangle.png', 
+                  height: 265, 
                   fit: BoxFit.cover,
                 ),
               ),
 
-              // 4. The BeeHive logo and text (NO CHANGE)
+              // 4. The BeeHive logo and text
               Positioned(
                 top: 0,
                 left: 0,
@@ -197,12 +196,12 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         Image.asset(
                           'assets/icons/logo_white.png',
-                          height: 28, // Adjust size as needed
+                          height: 28, 
                         ),
                         const SizedBox(width: 8),
                         Image.asset(
                           'assets/icons/BeeHive.png',
-                          height: 15, // Adjust size as needed
+                          height: 15, 
                         ),
                       ],
                     ),
@@ -210,10 +209,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
 
-              // 5. The Profile Picture (NO CHANGE)
+              // 5. The Profile Picture
               Positioned(
-                top: 150, // Position it to overlap the header and body
-                // Center horizontally
+                top: 150, 
                 left: MediaQuery.of(context).size.width / 2 - 65,
                 child: ClipPath(
                   clipper: HexClipper(),
@@ -234,7 +232,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             child: Text(
                               firstName.isNotEmpty
                                   ? firstName[0].toUpperCase()
-                                  : 'S',
+                                  : 'S', // Default if no name is set
                               style: const TextStyle(
                                   fontSize: 60, color: Colors.black54),
                             ),
@@ -244,7 +242,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
 
-              // 6. The Back and Edit buttons (NO CHANGE)
+              // 6. The Back and Edit buttons
               Positioned(
                 top: 0,
                 left: 0,
@@ -264,18 +262,20 @@ class _ProfilePageState extends State<ProfilePage> {
                     icon:
                         const Icon(Icons.edit_outlined, color: Colors.white),
                     onPressed: () async {
+                      // Pass the current Firestore data to the edit page
                       final bool? profileWasUpdated = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => EditProfilePage(
-                            userData: userData ?? {},
+                            userData: userData, // Pass the entire map
                           ),
                         ),
                       );
 
+                      // REFRESH FIX: If the profile was updated, reload the data.
                       if (profileWasUpdated == true && mounted) {
                         setState(() {
-                          _userFuture = _getOrCreateUserProfile();
+                          _userFuture = _getOrCreateUserProfile(); 
                         });
                       }
                     },
@@ -322,5 +322,3 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 }
-
-// --- Clipper Class (Only the Hexagonal one is needed now) --

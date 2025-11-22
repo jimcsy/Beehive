@@ -1,14 +1,10 @@
 import 'package:beehive/core/services/firestore_services.dart';
 import 'package:flutter/material.dart';
-// import 'package:cloud_firestore/cloud_firestore.dart'; // <-- 1. NO LONGER NEEDED
-// import 'package:firebase_auth/firebase_auth.dart'; // <-- 2. NO LONGER NEEDED
-
-// --- 3. ADD IMPORTS FOR SERVICES AND MODELS ---
 import 'package:provider/provider.dart';
 import 'package:beehive/core/models/user_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Needed for direct query
 
 class JoinRoomDialog extends StatefulWidget {
-  // --- 4. ACCEPT THE USERMODEL ---
   final UserModel userModel;
   const JoinRoomDialog({super.key, required this.userModel});
 
@@ -18,10 +14,8 @@ class JoinRoomDialog extends StatefulWidget {
 
 class _JoinRoomDialogState extends State<JoinRoomDialog> {
   final TextEditingController codeController = TextEditingController();
-  // final user = FirebaseAuth.instance.currentUser; // <-- 5. REMOVED
   bool isLoading = false;
 
-  // --- 6. FULLY REFACTORED joinRoom FUNCTION ---
   Future<void> joinRoom() async {
     final code = codeController.text.trim();
     if (code.isEmpty) return;
@@ -32,18 +26,32 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
     final firestoreService = Provider.of<FirestoreService>(context, listen: false);
 
     try {
-      // 1. Check if the room exists
-      final bool roomExists = await firestoreService.rooms.checkRoomExists(code);
+      // 1. Check if the room exists AND get its ID
+      final roomQuery = await FirebaseFirestore.instance
+          .collection('rooms')
+          .where('roomCode', isEqualTo: code)
+          .limit(1)
+          .get();
 
-      if (!roomExists) {
+      if (roomQuery.docs.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Room not found!")),
           );
         }
       } else {
-        // 2. If it exists, join the room
+        // 🌟 FOUND THE ROOM ID 🌟
+        final roomId = roomQuery.docs.first.id;
+
+        // 2. Join the room (Standard Logic)
         await firestoreService.rooms.joinRoom(code, widget.userModel);
+
+        // 3. 🌟 GENERATE PROGRESS 🌟
+        // This creates the document in users/{uid}/progress/{moduleId}
+        await firestoreService.users.initializeProgressForRoom(
+            widget.userModel.uid, 
+            roomId
+        );
 
         if (mounted) {
           Navigator.pop(context); // Close the dialog
@@ -68,8 +76,6 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // --- 7. YOUR ENTIRE BUILD METHOD IS UNCHANGED ---
-    // (It was already clean and just contains UI code)
     return AlertDialog(
       backgroundColor: Colors.white,
       title: const Text(
@@ -85,7 +91,7 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
         child: TextField(
           controller: codeController,
           style: const TextStyle(fontSize: 12),
-          cursorColor: Color(0xFF443C36),
+          cursorColor: const Color(0xFF443C36),
           decoration: InputDecoration(
             labelText: "Enter Room Code",
             labelStyle: const TextStyle(color: Colors.grey, fontSize: 12),
@@ -94,7 +100,7 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
               borderRadius: BorderRadius.circular(12),
             ),
             enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFF443C36).withOpacity(0.3), width: 1.5),
+              borderSide: BorderSide(color: const Color(0xFF443C36).withOpacity(0.3), width: 1.5),
               borderRadius: BorderRadius.circular(12),
             ),
             floatingLabelStyle: const TextStyle(color: Color(0xFF443C36)),

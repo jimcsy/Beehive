@@ -12,6 +12,7 @@ class PagedReadingScreen extends StatefulWidget {
   final String lessonTitle;
   final List<String> contentIDs;
   final String moduleId;
+  final String roomId;
   final String lessonId;
 
   const PagedReadingScreen({
@@ -19,6 +20,7 @@ class PagedReadingScreen extends StatefulWidget {
     required this.lessonTitle,
     required this.contentIDs,
     required this.moduleId,
+    required this.roomId,
     required this.lessonId,
   }) : super(key: key);
 
@@ -214,6 +216,7 @@ class _PagedReadingScreenState extends State<PagedReadingScreen> {
                 // Mark lesson complete in user's progress
                 try {
                   await ProgressService().markLessonAsCompleted(
+                    roomId: widget.roomId,
                     moduleId: widget.moduleId,
                     lessonId: widget.lessonId,
                   );

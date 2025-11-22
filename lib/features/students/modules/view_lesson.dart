@@ -12,13 +12,13 @@ import 'package:beehive/utils/hexagonal.dart'; // Uses your HexClipper
 class ViewUnitsTab extends StatefulWidget {
   final String roomId;
   final String moduleId;
-  final String userId; // 👈 --- ADDED: Required for progress
-  
+  final String userId;
+
   const ViewUnitsTab({
     super.key,
     required this.roomId,
     required this.moduleId,
-    required this.userId, // 👈 --- ADDED: Required for progress
+    required this.userId,
   });
 
   @override
@@ -33,13 +33,14 @@ class _ViewUnitsTabState extends State<ViewUnitsTab> {
     final moduleRef =
         FirebaseFirestore.instance.collection('modules').doc(widget.moduleId);
 
-    // 👈 --- NEW: REFERENCE TO USER'S PROGRESS DOC ---
-    // Path: users/{userId}/progress/{moduleId}
+    // 🌟 FIX: READ FROM THE COMPOSITE ID (RoomID_ModuleID)
+    final uniqueProgressId = '${widget.roomId}_${widget.moduleId}';
+
     final progressRef = FirebaseFirestore.instance
         .collection('users')
         .doc(widget.userId)
         .collection('progress')
-        .doc(widget.moduleId);
+        .doc(uniqueProgressId);
 
     return FutureBuilder<DocumentSnapshot>(
       future: moduleRef.get(),
@@ -59,8 +60,6 @@ class _ViewUnitsTabState extends State<ViewUnitsTab> {
         final moduleTitle = moduleData['title'] ?? 'Untitled Module';
         final lessonsRef = moduleRef.collection('lessons');
 
-        // 👈 --- NEW: WRAP WITH PROGRESS STREAMBUILDER ---
-        // This stream gets the user's progress map, e.g., {"M01-L01": true, ...}
         return StreamBuilder<DocumentSnapshot>(
           stream: progressRef.snapshots(),
           builder: (context, progressSnapshot) {
@@ -71,19 +70,19 @@ class _ViewUnitsTabState extends State<ViewUnitsTab> {
               return Center(
                   child: Text("Progress Error: ${progressSnapshot.error}"));
             }
+
+            // If no progress doc exists yet, handle gracefully
             if (!progressSnapshot.hasData || !progressSnapshot.data!.exists) {
-              // This can happen if the progress doc wasn't created yet.
               return const Center(
-                  child: Text('Could not find user progress.'));
+                  child: Text(
+                      'Initializing Module... (Please re-join room if this persists)'));
             }
 
-            // This is the map of lesson IDs to their completion status
             final progressData =
                 progressSnapshot.data!.data() as Map<String, dynamic>? ?? {};
             final Map<String, dynamic> lessonProgressMap =
                 (progressData['lessons'] as Map<String, dynamic>?) ?? {};
 
-            // This is your original StreamBuilder for lessons
             return StreamBuilder<QuerySnapshot>(
               stream: lessonsRef.snapshots(),
               builder: (context, lessonSnapshot) {
@@ -99,11 +98,9 @@ class _ViewUnitsTabState extends State<ViewUnitsTab> {
                       child: Text('No lessons found for this module.'));
                 }
 
-                // --- 👈 NEW: SORT THE LESSONS ---
-                // This is CRITICAL to make sure "Lesson 1" comes before "Lesson 2"
                 final lessons = lessonSnapshot.data!.docs;
-                lessons.sort((a, b) =>
-                    a.id.compareTo(b.id)); // Sorts by ID (e.g., M01-L01)
+                // Sort by ID to ensure correct order
+                lessons.sort((a, b) => a.id.compareTo(b.id));
 
                 if (_selectedIndex >= lessons.length) {
                   _selectedIndex = 0;
@@ -117,19 +114,17 @@ class _ViewUnitsTabState extends State<ViewUnitsTab> {
                     "Unit ${selectedLessonData['orderIndex'] ?? _selectedIndex + 1}";
                 final lessonTitle = selectedLessonData['title'] ?? 'Lesson';
 
-                // Pass all the extracted data to the layout widget
                 return ViewUnitsLayout(
                   moduleTitle: moduleTitle,
                   unitTitle: unitTitle,
                   lessonTitle: lessonTitle,
                   lessons: lessons,
                   selectedIndex: _selectedIndex,
-                  lessonProgressMap:
-                      lessonProgressMap, // 👈 --- PASS PROGRESS MAP DOWN
-                  moduleId: widget.moduleId, // Pass moduleId for progress
-                  userId: widget.userId, // Pass userId for context
+                  lessonProgressMap: lessonProgressMap,
+                  moduleId: widget.moduleId,
+                  roomId: widget.roomId,
+                  userId: widget.userId,
                   onLessonTap: (index) {
-                    // This callback updates the state
                     setState(() {
                       _selectedIndex = index;
                     });
@@ -155,6 +150,7 @@ class ViewUnitsLayout extends StatelessWidget {
   final ValueChanged<int> onLessonTap; // Callback function
   final Map<String, dynamic> lessonProgressMap; // 👈 --- ADDED: Progress data
   final String moduleId; // pass-through for progress updates
+  final String roomId;
   final String userId; // pass-through for progress context
 
   const ViewUnitsLayout({
@@ -167,6 +163,7 @@ class ViewUnitsLayout extends StatelessWidget {
     required this.onLessonTap,
     required this.lessonProgressMap, // 👈 --- ADDED: Progress data
     required this.moduleId,
+    required this.roomId,
     required this.userId,
   }) : super(key: key);
 
@@ -212,6 +209,7 @@ class ViewUnitsLayout extends StatelessWidget {
                 lessonTitle: newLessonTitle,
                 contentIDs: contentIDs,
                 moduleId: moduleId,
+                roomId: roomId,
                 lessonId: lesson.id,
               ),
             ),
@@ -235,6 +233,7 @@ class ViewUnitsLayout extends StatelessWidget {
             builder: (context) => VideoLessonScreen( // 👈 Your new screen
               contentIDs: contentIDs,
               moduleId: moduleId,
+              roomId: roomId,
               lessonId: lesson.id,
             ),
           ),
@@ -261,6 +260,7 @@ class ViewUnitsLayout extends StatelessWidget {
               contentIDs: contentIDs, // 👈 Pass the list of IDs
               lessonTitle: lessonData['title'] ?? 'Quiz',
               moduleId: moduleId,
+              roomId: roomId,
               lessonId: lesson.id,
               userId: userId, // NEW: pass userId down from ViewUnitsLayout
             ),
@@ -285,6 +285,7 @@ class ViewUnitsLayout extends StatelessWidget {
               // 🌟 FIX: Change 'contentIDs' to 'contentID' (singular)
               contentID: contentIDs.first,
               moduleId: moduleId,
+              roomId: roomId,
               lessonId: lesson.id,
             ),
           ),
@@ -310,6 +311,7 @@ class ViewUnitsLayout extends StatelessWidget {
            builder: (context) => DragDropGameScreen(
               contentIDs: contentIDs, // Pass the whole list!
               moduleId: moduleId,
+              roomId: roomId,
               lessonId: lesson.id,
             ),
           ),

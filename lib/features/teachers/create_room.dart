@@ -1,17 +1,17 @@
 import 'package:beehive/core/services/firestore_services.dart';
 import 'package:beehive/features/shared/show_modal.dart';
 import 'package:flutter/material.dart';
-// import 'package:cloud_firestore/cloud_firestore.dart'; // <-- 1. NO LONGER NEEDED
-// import 'package:firebase_auth/firebase_auth.dart'; // <-- 2. NO LONGER NEEDED
+// import 'package:cloud_firestore/cloud_firestore.dart'; // NO LONGER NEEDED
+// import 'package:firebase_auth/firebase_auth.dart'; // NO LONGER NEEDED
 import 'dart:math';
 
-// --- 3. ADD IMPORTS ---
+// --- ADD IMPORTS ---
 import 'package:provider/provider.dart';
 import 'package:beehive/core/models/user_model.dart';
 import 'package:beehive/core/models/room_model.dart';
 
 class CreateRoom extends StatefulWidget {
-  // --- 4. ACCEPT THE USER MODEL ---
+  // --- ACCEPT THE USER MODEL ---
   final UserModel userModel;
   const CreateRoom({super.key, required this.userModel});
 
@@ -29,7 +29,6 @@ class _CreateRoomState extends State<CreateRoom> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      // ... (Your build method's UI is unchanged) ...
       padding: const EdgeInsets.all(20),
       child: SizedBox(
         width: double.infinity,
@@ -41,11 +40,11 @@ class _CreateRoomState extends State<CreateRoom> {
                 onTap: () => _showCreateRoomDialog(context),
                 child: Row(
                   children: [
-                    Icon(Icons.meeting_room, color: Colors.blue),
+                    const Icon(Icons.meeting_room, color: Colors.blue),
                     const SizedBox(width: 10),
-                    Align(
+                    const Align(
                       alignment: Alignment.centerLeft,
-                      child: const Text(
+                      child: Text(
                         "Create a room",
                         style: TextStyle(
                           fontSize: 12,
@@ -74,21 +73,20 @@ class _CreateRoomState extends State<CreateRoom> {
       ),
     );
   }
-  
-  // --- 5. REFACTORED DIALOG METHOD ---
+
+  // --- REFACTORED DIALOG METHOD ---
   void _showCreateRoomDialog(BuildContext context) {
     // Get the service *before* showing the dialog
     final firestoreService = Provider.of<FirestoreService>(context, listen: false);
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, 
-      backgroundColor: Colors.transparent, 
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return Padding(
           padding: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.10),
           child: Container(
-            // ... (Your container/column/header UI is unchanged) ...
             height: MediaQuery.of(context).size.height * 0.75,
             decoration: const BoxDecoration(
               color: Colors.white,
@@ -121,7 +119,6 @@ class _CreateRoomState extends State<CreateRoom> {
                         ),
                       ),
                       TextButton(
-                        // --- 6. REFACTORED onPressed LOGIC ---
                         onPressed: () async {
                           final className = classNameController.text.trim();
                           final section = sectionController.text.trim();
@@ -157,24 +154,23 @@ class _CreateRoomState extends State<CreateRoom> {
                             roomLink: roomLink,
                             createdBy: email,
                             creatorId: uid,
-                            // createdAt will be set by the service
                           );
 
                           try {
                             // Call the service to create the room
                             await firestoreService.rooms.createRoom(newRoom);
-                            
+
                             if (mounted) {
                               Navigator.pop(context); // Close the modal
                               setState(() => roomCreated = true);
                             }
                           } catch (e) {
-                             if (mounted) {
-                               showMessage(context, "Failed to create room: $e");
-                             }
+                            if (mounted) {
+                              showMessage(context, "Failed to create room: $e");
+                            }
                           }
                         },
-                        child: Text(
+                        child: const Text(
                           'Create',
                           style: TextStyle(
                             color: Colors.blue,
@@ -218,22 +214,21 @@ class _CreateRoomState extends State<CreateRoom> {
     );
   }
 
-  // ... (Your _buildInputField and _generateRoomCode methods are unchanged) ...
+  // --- MERGED _buildInputField METHOD ---
   Widget _buildInputField({
     required TextEditingController controller,
     required String label,
   }) {
-    // ...
     return TextField(
       controller: controller,
       decoration: InputDecoration(
-        labelText: label, 
+        labelText: label,
         labelStyle: TextStyle(
-          color: Colors.grey[600], 
+          color: Colors.grey[600],
           fontSize: 16,
         ),
         floatingLabelStyle: const TextStyle(
-          color: Colors.black, 
+          color: Colors.black,
           fontSize: 16,
         ),
         enabledBorder: OutlineInputBorder(
@@ -243,6 +238,7 @@ class _CreateRoomState extends State<CreateRoom> {
             width: 1,
           ),
         ),
+        // Focused border style
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(
@@ -257,12 +253,13 @@ class _CreateRoomState extends State<CreateRoom> {
             width: 1,
           ),
         ),
+        // Increased vertical padding to 20 to make the container wider/taller
         contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12, vertical: 16),
-        isDense: true, 
+            horizontal: 12, vertical: 20), 
+        isDense: true,
       ),
       style: const TextStyle(
-          fontSize: 16, color: Colors.black), 
+          fontSize: 16, color: Colors.black),
     );
   }
 

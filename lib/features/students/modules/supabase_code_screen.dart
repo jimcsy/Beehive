@@ -16,8 +16,15 @@ class CodeScreen extends StatefulWidget {
   final String? contentID;
   final String moduleId;
   final String lessonId;
+  final String roomId; // 👈 ADDED: Required for room-specific progress
 
-  const CodeScreen({Key? key, this.contentID, required this.moduleId, required this.lessonId}) : super(key: key);
+  const CodeScreen({
+    Key? key,
+    this.contentID,
+    required this.moduleId,
+    required this.lessonId,
+    required this.roomId, // 👈 ADDED
+  }) : super(key: key);
 
   @override
   _CodeScreenState createState() => _CodeScreenState();
@@ -60,7 +67,11 @@ class _CodeScreenState extends State<CodeScreen> {
   Future<void> _loadPracticeProblem() async {
     final supabase = Supabase.instance.client;
     try {
-      final response = await supabase.from('IDEPractice').select().eq('lessonContentId', widget.contentID!).single();
+      final response = await supabase
+          .from('IDEPractice')
+          .select()
+          .eq('lessonContentId', widget.contentID!)
+          .single();
 
       if (mounted) {
         setState(() {
@@ -84,7 +95,9 @@ class _CodeScreenState extends State<CodeScreen> {
 
   // Robust executor (tries multiple hosts)
   Future<void> _executePythonCode() async {
-    setState(() { _isRunningCode = true; });
+    setState(() {
+      _isRunningCode = true;
+    });
 
     final List<String> tryHosts = [
       'http://127.0.0.1:5000',
@@ -108,7 +121,9 @@ class _CodeScreenState extends State<CodeScreen> {
     for (final base in tryHosts) {
       final url = Uri.parse('$base/execute');
       try {
-        final response = await http.post(url, body: {'code': _codeController.text}).timeout(const Duration(seconds: 10));
+        final response = await http
+            .post(url, body: {'code': _codeController.text}).timeout(
+                const Duration(seconds: 10));
         final data = jsonDecode(response.body);
         final String output = (data['output'] ?? '').toString();
         final String error = (data['error'] ?? '').toString();
@@ -127,7 +142,9 @@ class _CodeScreenState extends State<CodeScreen> {
     if (lastEx != null && outputText.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Error: Could not reach Python server. Check logs or server status.")),
+          const SnackBar(
+              content: Text(
+                  "Error: Could not reach Python server. Check logs or server status.")),
         );
       }
     } else {
@@ -137,13 +154,21 @@ class _CodeScreenState extends State<CodeScreen> {
           builder: (context) => AlertDialog(
             title: const Text("Output"),
             content: Text(outputText),
-            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("OK"))],
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("OK"))
+            ],
           ),
         );
       }
     }
 
-    if (mounted) setState(() { _isRunningCode = false; });
+    if (mounted) {
+      setState(() {
+        _isRunningCode = false;
+      });
+    }
   }
 
   @override
@@ -152,14 +177,22 @@ class _CodeScreenState extends State<CodeScreen> {
       appBar: AppBar(
         title: Text(_isCodingMode ? "Code Editor" : "Instructions"),
         leading: _isCodingMode
-            ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() => _isCodingMode = false))
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => setState(() => _isCodingMode = false))
             : null,
       ),
-      body: _isLoading ? const Center(child: CircularProgressIndicator()) : _isCodingMode ? _buildEditorView() : _buildInstructionsView(),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _isCodingMode
+              ? _buildEditorView()
+              : _buildInstructionsView(),
       floatingActionButton: _isCodingMode
           ? FloatingActionButton(
               onPressed: _isRunningCode ? null : _executePythonCode,
-              child: _isRunningCode ? const CircularProgressIndicator(color: Colors.white) : const Icon(Icons.play_arrow),
+              child: _isRunningCode
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Icon(Icons.play_arrow),
             )
           : null,
     );
@@ -171,25 +204,46 @@ class _CodeScreenState extends State<CodeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Directions:", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          Text(_directions, style: const TextStyle(fontSize: 16)),
-          const Divider(height: 40),
-          const Text("Starter Code:", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(10),
-            color: Colors.grey[200],
-            width: double.infinity,
-            child: Text(_guideCode, style: const TextStyle(fontFamily: 'monospace')),
+          // 🌟 WRAP CONTENT IN EXPANDED + SCROLLVIEW
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Directions:",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  Text(_directions, style: const TextStyle(fontSize: 16)),
+                  const Divider(height: 40),
+                  const Text("Starter Code:",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    color: Colors.grey[200],
+                    width: double.infinity,
+                    child: Text(_guideCode,
+                        style: const TextStyle(fontFamily: 'monospace')),
+                  ),
+                  const SizedBox(height: 20), // Extra space at bottom of scroll
+                ],
+              ),
+            ),
           ),
-          const Spacer(),
+          
+          // 🌟 BUTTON STAYS FIXED AT THE BOTTOM
+          const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
               onPressed: () {
-                Navigator.push<String?>(context, MaterialPageRoute(builder: (context) => IdeScreen(initialCode: _guideCode))).then((submittedCode) async {
+                Navigator.push<String?>(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            IdeScreen(initialCode: _guideCode))).then(
+                    (submittedCode) async {
                   if (submittedCode != null) {
                     if (widget.contentID != null) {
                       try {
@@ -200,21 +254,28 @@ class _CodeScreenState extends State<CodeScreen> {
                           'submitted_at': DateTime.now().toIso8601String(),
                         });
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Submission saved.')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Submission saved.')));
                         }
                         try {
-                          await ProgressService().markLessonAsCompleted(moduleId: widget.moduleId ?? '', lessonId: widget.lessonId ?? '');
+                          await ProgressService().markLessonAsCompleted(
+                            roomId: widget.roomId,
+                            moduleId: widget.moduleId,
+                            lessonId: widget.lessonId,
+                          );
                         } catch (e) {
                           debugPrint('Failed to mark code lesson complete: $e');
                         }
                       } catch (e) {
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Submit failed: $e')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Submit failed: $e')));
                         }
                       }
                     } else {
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code returned from IDE.')));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Code returned from IDE.')));
                       }
                     }
                   }

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart'; // For Clipboard
 
+// IMPORT THE NEW PAGE
+import 'module_student_list.dart';
+
 class ViewRoomPage extends StatelessWidget {
   final String roomId;
   final String className;
@@ -40,7 +43,6 @@ class ViewRoomPage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: () {
-              // Show dialog with class code & copy link
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -52,14 +54,14 @@ class ViewRoomPage extends StatelessWidget {
                   content: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text("Class Code: $roomId", style: TextStyle(fontSize: 12,),),
+                      Text("Class Code: $roomId", style: const TextStyle(fontSize: 12,),),
                       const SizedBox(height: 10),
                       ElevatedButton.icon(
                         onPressed: () {
                           final link = "https://beehiveapp.page.link/$roomId";
                           Clipboard.setData(ClipboardData(text: link));
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Link copied to clipboard!",style: TextStyle(fontSize: 12,),)),
+                            const SnackBar(content: Text("Link copied to clipboard!", style: TextStyle(fontSize: 12,),)),
                           );
                         },
                         icon: const Icon(Icons.copy),
@@ -93,9 +95,9 @@ class ViewRoomPage extends StatelessWidget {
                 }
 
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: const Center(
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(
                       child: Text('No modules have been uploaded to this room yet.', textAlign: TextAlign.center,),
                     ),
                   );
@@ -106,7 +108,10 @@ class ViewRoomPage extends StatelessWidget {
                 return ListView.builder(
                   itemCount: modules.length,
                   itemBuilder: (context, index) {
+                    // Get Document ID and Data
+                    final moduleId = modules[index].id; 
                     final module = modules[index].data() as Map<String, dynamic>;
+                    
                     final title = module['title'] ?? 'Untitled Module';
                     final description = module['description'] ?? 'No description available.';
                     
@@ -131,6 +136,20 @@ class ViewRoomPage extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                        // --- NAVIGATION LOGIC ADDED HERE ---
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ModuleStudentListPage(
+                                roomId: roomId,
+                                moduleId: moduleId,
+                                moduleTitle: title,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     );
                   },

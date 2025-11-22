@@ -10,9 +10,10 @@ import 'package:beehive/features/students/modules/progress_service.dart';
 class VideoLessonScreen extends StatefulWidget {
   final List<String> contentIDs;
   final String moduleId;
+  final String roomId;
   final String lessonId;
 
-  const VideoLessonScreen({Key? key, required this.contentIDs, required this.moduleId, required this.lessonId}) : super(key: key);
+  const VideoLessonScreen({Key? key, required this.contentIDs, required this.moduleId, required this.roomId, required this.lessonId}) : super(key: key);
 
   @override
   _VideoLessonScreenState createState() => _VideoLessonScreenState();
@@ -189,6 +190,7 @@ class _VideoLessonScreenState extends State<VideoLessonScreen> {
                 if (shouldPop) {
                   try {
                     await ProgressService().markLessonAsCompleted(
+                      roomId: widget.roomId,
                       moduleId: widget.moduleId,
                       lessonId: widget.lessonId,
                     );
