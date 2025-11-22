@@ -184,21 +184,47 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                // Archive option
+                                                // Archive option - UPDATED
                                                 GestureDetector(
-                                                  onTap: () {
-                                                    Navigator.pop(context); // Close modal
-                                                    Navigator.push(
-                                                      context,
-                                                      MaterialPageRoute(
-                                                        builder: (context) => ArchiveRoomPage( 
-                                                          roomId: roomId,
-                                                          className: className,
-                                                          subject: subject, 
-                                                          teacherName: widget.userModel.fullName, 
-                                                        ),
-                                                      ),
+                                                  onTap: () async {
+                                                    // 1. Capture context and service before async gap
+                                                    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+                                                    final navigator = Navigator.of(context);
+                                                    final scaffoldMessenger = ScaffoldMessenger.of(context);
+                                                    
+                                                    // 2. Close the Modal
+                                                    navigator.pop();
+
+                                                    // 3. Show Confirmation Dialog
+                                                    final confirm = await _showConfirmationDialog(
+                                                      navigator.context,
+                                                      'Archive Room',
+                                                      'Are you sure you want to archive "$className"?',
                                                     );
+
+                                                    // 4. Logic if Yes
+                                                    if (confirm == true) {
+                                                      try {
+                                                        // Execute Archive (Assuming method exists in your service)
+                                                        await firestoreService.rooms.archiveRoom(roomId);
+
+                                                        scaffoldMessenger.showSnackBar(SnackBar(
+                                                          content: Text('Room "$className" archived successfully'),
+                                                        ));
+
+                                                        // 5. Navigate to the Archived Rooms List (same as AppBar button)
+                                                        navigator.push(
+                                                          MaterialPageRoute(
+                                                            builder: (context) => const ArchivedRoomsPage(), 
+                                                          ),
+                                                        );
+                                                      } catch (e) {
+                                                        scaffoldMessenger.showSnackBar(const SnackBar(
+                                                          content: Text('Failed to archive room'),
+                                                        ));
+                                                        debugPrint('Archive room error: $e');
+                                                      }
+                                                    }
                                                   },
                                                   child: const Row(
                                                     children: [
@@ -340,12 +366,12 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
 
         return Scaffold(
           backgroundColor: Colors.white,
-          // --- DRAWER IMPLEMENTATION WITH FIX ---
+          // --- FIXED DRAWER IMPLEMENTATION ---
           drawer: UserDrawer(
             userModel: widget.userModel, 
             rooms: rooms, 
             onSignOut: signout,
-            // FIX: When a teacher clicks a room in Drawer, navigate to Room View
+            // ADDED: onRoomSelected is required by your UserDrawer definition
             onRoomSelected: (room) {
                Navigator.push(
                 context,

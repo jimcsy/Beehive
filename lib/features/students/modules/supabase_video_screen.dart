@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:google_fonts/google_fonts.dart'; // Ensure this is in pubspec.yaml
 import 'package:beehive/features/students/modules/progress_service.dart';
 
 // ==========================================
@@ -13,7 +14,13 @@ class VideoLessonScreen extends StatefulWidget {
   final String roomId;
   final String lessonId;
 
-  const VideoLessonScreen({Key? key, required this.contentIDs, required this.moduleId, required this.roomId, required this.lessonId}) : super(key: key);
+  const VideoLessonScreen({
+    Key? key,
+    required this.contentIDs,
+    required this.moduleId,
+    required this.roomId,
+    required this.lessonId,
+  }) : super(key: key);
 
   @override
   _VideoLessonScreenState createState() => _VideoLessonScreenState();
@@ -23,7 +30,6 @@ class _VideoLessonScreenState extends State<VideoLessonScreen> {
   final PageController _pageController = PageController();
   int _currentPageIndex = 0;
   late final Future<List<Map<String, dynamic>>> _fetchPages;
-  // 1. Add a list for GlobalKeys
   List<GlobalKey<_VideoPlayerWidgetState>> _videoKeys = [];
 
   @override
@@ -32,28 +38,25 @@ class _VideoLessonScreenState extends State<VideoLessonScreen> {
     _fetchPages = _loadPagesFromSupabase();
   }
 
-  // 2. Add the navigation logic
   Future<bool> _onWillPop() async {
     if (_videoKeys.isEmpty || _videoKeys.length <= _currentPageIndex) {
-      return true; // Allow pop if keys aren't initialized or index is out of bounds
+      return true;
     }
 
     final playerState = _videoKeys[_currentPageIndex].currentState;
     if (playerState != null && playerState.controller.value.isFullScreen) {
-      playerState.controller.toggleFullScreenMode(); // Exit fullscreen
-      return false; // Prevent screen from popping
+      playerState.controller.toggleFullScreenMode();
+      return false;
     }
     
-    // If not in fullscreen, pause the video before popping
     playerState?.controller.pause();
-    return true; // Allow screen to pop
+    return true;
   }
 
   Future<List<Map<String, dynamic>>> _loadPagesFromSupabase() async {
     final supabase = Supabase.instance.client;
     if (widget.contentIDs.isEmpty) return [];
     
-    // (Your existing Supabase logic remains exactly the same)
     try {
       final List<Map<String, dynamic>> fetchedPages = await supabase
           .from('Video')
@@ -78,7 +81,6 @@ class _VideoLessonScreenState extends State<VideoLessonScreen> {
   Widget build(BuildContext context) {
     bool isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
-    // 🔥 FIX: When back to portrait, restore safe UI
     if (!isLandscape) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       SystemChrome.setSystemUIOverlayStyle(
@@ -93,118 +95,166 @@ class _VideoLessonScreenState extends State<VideoLessonScreen> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-      // 🔥 Auto-hide appbar in landscape
-      appBar: isLandscape ? null : AppBar(
-        title: const Text("Video Lesson"),
-        // 3. Use the custom pop logic for the AppBar back button
-        leading: BackButton(onPressed: () {
-          _onWillPop().then((shouldPop) {
-            if (shouldPop) {
-              Navigator.of(context).pop();
-            }
-          });
-        }),
-      ),
-
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _fetchPages,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('This lesson has no videos.'));
-          }
-
-          final pages = snapshot.data!;
-          // 4. Initialize keys only once when data is available
-          if (_videoKeys.isEmpty) {
-            _videoKeys = List.generate(pages.length, (_) => GlobalKey<_VideoPlayerWidgetState>());
-          }
-
-          return AnimatedSwitcher(
-            duration: const Duration(milliseconds: 350),
-            switchInCurve: Curves.easeOut,
-            switchOutCurve: Curves.easeIn,
-            transitionBuilder: (child, animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: ScaleTransition(
-                  scale: Tween<double>(begin: 0.98, end: 1.0).animate(animation),
-                  child: child,
-                ),
-              );
-            },
-            child: Column(
-              children: [
-                // VIDEO AREA
-                Expanded(
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: pages.length,
-                    onPageChanged: (index) {
-                      setState(() { _currentPageIndex = index; });
-                    },
-                    itemBuilder: (context, index) {
-                      final pageData = pages[index];
-                      return VideoPlayerWidget(
-                        // 5. Assign the key to the widget
-                        key: _videoKeys[index],
-                        url: pageData['url'] ?? '',
-                        title: pageData['title'] ?? 'No Title',
-                      );
-                    },
-                  ),
-                ),
-            
-               if (!isLandscape) _buildNavigationControls(pages.length),
-              ],
+        backgroundColor: Colors.white, // 🌟 MATCH IMAGE BACKGROUND
+        appBar: isLandscape ? null : AppBar(
+          title: Text(
+            "Video Lesson",
+            style: GoogleFonts.inter(
+              color: Colors.black,
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
             ),
-          );
-        },
-      ),
+          ),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          leading: BackButton(
+            color: Colors.black,
+            onPressed: () {
+              _onWillPop().then((shouldPop) {
+                if (shouldPop) {
+                  Navigator.of(context).pop();
+                }
+              });
+            },
+          ),
+        ),
+
+        body: FutureBuilder<List<Map<String, dynamic>>>(
+          future: _fetchPages,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(child: Text('This lesson has no videos.'));
+            }
+
+            final pages = snapshot.data!;
+            if (_videoKeys.isEmpty) {
+              _videoKeys = List.generate(pages.length, (_) => GlobalKey<_VideoPlayerWidgetState>());
+            }
+
+            return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 350),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              child: Column(
+                children: [
+                  // VIDEO AREA
+                  Expanded(
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: pages.length,
+                      onPageChanged: (index) {
+                        setState(() { _currentPageIndex = index; });
+                      },
+                      itemBuilder: (context, index) {
+                        final pageData = pages[index];
+                        return VideoPlayerWidget(
+                          key: _videoKeys[index],
+                          url: pageData['url'] ?? '',
+                          title: pageData['title'] ?? 'No Title',
+                        );
+                      },
+                    ),
+                  ),
+              
+                  if (!isLandscape) _buildNavigationControls(pages.length),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
+  // 🌟 UPDATED NAVIGATION CONTROLS (PILL SHAPE & COLORS)
   Widget _buildNavigationControls(int totalPages) {
     final bool isLastPage = _currentPageIndex == (totalPages - 1);
+    
     return Container(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
+      color: Colors.white,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          ElevatedButton(
-            onPressed: _currentPageIndex == 0 ? null : () {
-              _pageController.previousPage(
-                duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
-            },
-            child: const Text('Prev'),
-          ),
-          Text('${_currentPageIndex + 1} / $totalPages'),
-          ElevatedButton(
-            onPressed: () async {
-              if (isLastPage) {
-                // 6. Use the custom pop logic for the Done button
-                final shouldPop = await _onWillPop();
-                if (shouldPop) {
-                  try {
-                    await ProgressService().markLessonAsCompleted(
-                      roomId: widget.roomId,
-                      moduleId: widget.moduleId,
-                      lessonId: widget.lessonId,
-                    );
-                  } catch (e) {
-                    print('Failed to mark lesson complete: $e');
-                  }
-                  Navigator.of(context).pop();
-                }
-              } else {
-                _pageController.nextPage(
+          // --- PREV BUTTON (Grey) ---
+          SizedBox(
+            width: 120,
+            height: 45,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF0F0F0), // Light Gray
+                foregroundColor: Colors.black54, // Dark Text
+                elevation: 0,
+                shape: const StadiumBorder(), // Pill Shape
+              ),
+              onPressed: _currentPageIndex == 0 ? null : () {
+                _pageController.previousPage(
                   duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
-              }
-            },
-            child: Text(isLastPage ? 'Done' : 'Next'),
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.arrow_back_ios_new, size: 14),
+                  SizedBox(width: 8),
+                  Text('Prev', style: TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ),
+
+          // --- PAGE COUNT ---
+          Text(
+            '${_currentPageIndex + 1} / $totalPages',
+            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54),
+          ),
+
+          // --- NEXT/DONE BUTTON (Gold) ---
+          SizedBox(
+            width: 120,
+            height: 45,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFA0701F), // Gold/Brown
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: const StadiumBorder(), // Pill Shape
+              ),
+              onPressed: () async {
+                if (isLastPage) {
+                  final shouldPop = await _onWillPop();
+                  if (shouldPop) {
+                    try {
+                      await ProgressService().markLessonAsCompleted(
+                        roomId: widget.roomId,
+                        moduleId: widget.moduleId,
+                        lessonId: widget.lessonId,
+                      );
+                    } catch (e) {
+                      print('Failed to mark lesson complete: $e');
+                    }
+                    Navigator.of(context).pop();
+                  }
+                } else {
+                  _pageController.nextPage(
+                    duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+                }
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(isLastPage ? 'Done' : 'Next', 
+                       style: const TextStyle(fontWeight: FontWeight.bold)),
+                  if (!isLastPage) ...[
+                    const SizedBox(width: 8),
+                    const Icon(Icons.arrow_forward_ios, size: 14),
+                  ],
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -239,7 +289,6 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
         autoPlay: false,
         mute: false,
         enableCaption: true,
-        // ⚠️ This ensures the player knows it can go fullscreen
         disableDragSeek: false,
         loop: false,
         isLive: false,
@@ -250,31 +299,23 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
   @override
   void deactivate() {
-    // The controller is paused, but forcing fullscreen exit here is problematic
-    // as the parent widget now handles it before navigation.
     controller.pause();
     super.deactivate();
     }
 
   @override
   void dispose() {
-    // The fullscreen check is removed to prevent animation conflicts.
-    // The parent's pop logic now ensures fullscreen is exited first.
     controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // 🌟 THE MAGIC WIDGET
-    // YoutubePlayerBuilder creates a separate Overlay Route when fullscreen is active.
-    // This overlay sits ON TOP of your AppBar and Buttons, hiding them completely.
-    
     return WillPopScope(
       onWillPop: () async {
         if (controller.value.isFullScreen) {
           controller.toggleFullScreenMode();
-          return false; // Do not exit screen yet
+          return false;
         }
         return true;
       },
@@ -282,37 +323,55 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
         player: YoutubePlayer(
           controller: controller,
           showVideoProgressIndicator: true,
-          progressIndicatorColor: Colors.amber,
-          // Customizing the bottom actions to ensure FullScreenButton is there
+          progressIndicatorColor: const Color(0xFFA0701F), // Match app theme
           bottomActions: [
             CurrentPosition(),
-            ProgressBar(isExpanded: true),
+            ProgressBar(isExpanded: true, colors: const ProgressBarColors(
+              playedColor: Color(0xFFA0701F),
+              handleColor: Color(0xFFA0701F),
+            )),
             RemainingDuration(),
             FullScreenButton(),
           ],
         ),
         builder: (context, player) {
-          // This builder ONLY builds what the screen looks like in PORTRAIT mode.
-          // When in Landscape/Fullscreen, the package ignores this part and just shows the video.
-          
           return SingleChildScrollView(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // The Title above the video (Visible in Portrait)
+                // 🌟 TYPOGRAPHY MATCHING IMAGE 2
+                const SizedBox(height: 24),
+                
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: Text(
-                    widget.title,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    widget.title, // e.g. "Basic Input and Output"
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
                 
-                // The Player (Visible in Portrait)
-                player,
+                const SizedBox(height: 40),
                 
-                const SizedBox(height: 50),
-                const Center(child: Text("Rotate phone or click icon for Fullscreen")),
+                // The Player Container
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 0), // Full width or added padding
+                  child: AspectRatio(
+                    aspectRatio: 16/9,
+                    child: player,
+                  ),
+                ),
+                
+                const SizedBox(height: 20),
+                
+                Text(
+                  "Rotate phone for Fullscreen",
+                  style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                ),
               ],
             ),
           );

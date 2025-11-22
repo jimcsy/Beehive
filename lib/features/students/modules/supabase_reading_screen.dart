@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-// For inline code examples (small, read-only code boxes)
+// For inline code examples
 import 'package:code_text_field/code_text_field.dart';
 import 'package:highlight/languages/python.dart';
 import 'package:flutter_highlight/themes/monokai-sublime.dart';
+import 'package:flutter_highlight/themes/atom-one-dark.dart'; // Added a backup theme
 import 'package:google_fonts/google_fonts.dart' as gfonts;
-import 'dart:convert'; // For your robust JSON parsing
+import 'dart:convert';
 import 'package:beehive/features/students/modules/progress_service.dart';
 
 class PagedReadingScreen extends StatefulWidget {
@@ -31,8 +32,7 @@ class PagedReadingScreen extends StatefulWidget {
 class _PagedReadingScreenState extends State<PagedReadingScreen> {
   final PageController _pageController = PageController();
   int _currentPageIndex = 0;
-  
-  // This Future will hold our pages
+
   late final Future<List<Map<String, dynamic>>> _fetchPages;
 
   @override
@@ -41,8 +41,6 @@ class _PagedReadingScreenState extends State<PagedReadingScreen> {
     _fetchPages = _loadPagesFromSupabase();
   }
 
-  // 🌟 THIS IS YOUR WORKING, SORTING FUNCTION 🌟
-  // I've just removed the "flattening" part.
   Future<List<Map<String, dynamic>>> _loadPagesFromSupabase() async {
     final supabase = Supabase.instance.client;
 
@@ -51,30 +49,30 @@ class _PagedReadingScreenState extends State<PagedReadingScreen> {
     }
 
     try {
-      // 1. Fetch all rows that match our list of IDs
       final List<Map<String, dynamic>> fetchedPages = await supabase
           .from('Reading')
           .select()
           .inFilter('lessonContentId', widget.contentIDs);
 
-      // 2. Re-sort them to match the Firestore order
       final Map<String, Map<String, dynamic>> pageMap = {
-        for (var page in fetchedPages) page['lessonContentId']: page
+        for (var page in fetchedPages) page['lessonContentId'] as String: page
       };
+
       final List<Map<String, dynamic>> sortedPages = [];
+      
+      // 🌟 FIX 1: Safety check. If ID is missing in DB, skip it instead of crashing.
       for (String id in widget.contentIDs) {
         if (pageMap.containsKey(id)) {
           sortedPages.add(pageMap[id]!);
+        } else {
+          debugPrint("Warning: Content ID $id not found in Reading table.");
         }
       }
-      
-      // 3. ❗️ CHANGE ❗️
-      // Instead of flattening, just return the 3 sorted pages
       return sortedPages;
-
     } catch (e) {
       print('Error fetching from Supabase: $e');
-      throw Exception('Failed to load content: $e');
+      // Return empty list to avoid crashing UI, or rethrow if you want to show error screen
+      return []; 
     }
   }
 
@@ -89,49 +87,54 @@ class _PagedReadingScreenState extends State<PagedReadingScreen> {
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: _fetchPages,
       builder: (context, snapshot) {
-        // Default title (fallback)
         String appBarTitle = widget.lessonTitle;
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          // While loading, show a scaffold with progress
           return Scaffold(
-            appBar: AppBar(title: Text(appBarTitle)),
+            backgroundColor: Colors.white,
+            appBar: _buildAppBar(appBarTitle),
             body: const Center(child: CircularProgressIndicator()),
           );
         }
 
         if (snapshot.hasError) {
           return Scaffold(
-            appBar: AppBar(title: Text(appBarTitle)),
+            backgroundColor: Colors.white,
+            appBar: _buildAppBar(appBarTitle),
             body: Center(child: Text('Error: ${snapshot.error}')),
           );
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Scaffold(
-            appBar: AppBar(title: Text(appBarTitle)),
-            body: Center(child: Text('This lesson has no content.')),
+            backgroundColor: Colors.white,
+            appBar: _buildAppBar(appBarTitle),
+            body: const Center(child: Text('This lesson has no content.')),
           );
-        } 
+        }
 
-        // We have pages now; build the full scaffold using the loaded pages
         final pages = snapshot.data!;
         return Scaffold(
-          appBar: AppBar(title: Text(appBarTitle)),
+          backgroundColor: Colors.white,
+          appBar: _buildAppBar(appBarTitle),
           body: Column(
             children: [
+              // 🌟 CONTENT AREA
               Expanded(
                 child: PageView.builder(
                   controller: _pageController,
+                  physics: const BouncingScrollPhysics(), 
                   itemCount: pages.length,
                   onPageChanged: (index) {
-                    setState(() { _currentPageIndex = index; });
+                    setState(() {
+                      _currentPageIndex = index;
+                    });
                   },
                   itemBuilder: (context, index) {
                     final pageData = pages[index];
-
                     final dynamic raw = pageData['content_array'];
-                    final String title = pageData['title'] ?? widget.lessonTitle;
+                    final String title =
+                        pageData['title'] ?? widget.lessonTitle;
 
                     List<dynamic> blocks = [];
                     if (raw == null) {
@@ -144,17 +147,27 @@ class _PagedReadingScreenState extends State<PagedReadingScreen> {
                       }
                     } else if (raw is List) {
                       blocks = List<dynamic>.from(raw);
-                    } else {
-                      blocks = [];
                     }
 
-                    return DynamicPageContent(
-                      title: title,
-                      blocks: blocks,
+                    return Container(
+                      margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FA), 
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: DynamicPageContent(
+                          title: title,
+                          blocks: blocks,
+                        ),
+                      ),
                     );
                   },
                 ),
               ),
+              
+              // 🌟 NAVIGATION CONTROLS
               _buildNavigationControls(pages.length),
             ],
           ),
@@ -163,78 +176,112 @@ class _PagedReadingScreenState extends State<PagedReadingScreen> {
     );
   }
 
-  // Navigation controls
+  PreferredSizeWidget _buildAppBar(String title) {
+    return AppBar(
+      title: Text(
+        title,
+        style: gfonts.GoogleFonts.inter(
+          color: Colors.black,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      centerTitle: true,
+      backgroundColor: Colors.white,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: Colors.black),
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+    );
+  }
+
   Widget _buildNavigationControls(int totalPages) {
-    // 🌟 1. Check if we are on the last page
     final bool isLastPage = _currentPageIndex == (totalPages - 1);
 
     return Container(
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        border: Border(top: BorderSide(color: Colors.grey[300]!)),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
+      color: Colors.white,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // --- "Prev" Button ---
-          // (This logic is unchanged)
-          ElevatedButton.icon(
-            icon: Icon(Icons.arrow_back),
-            label: Text('Prev'),
-            onPressed: _currentPageIndex == 0 ? null : () {
-              _pageController.previousPage(
-                duration: Duration(milliseconds: 300),
-                curve: Curves.easeOut,
-              );
-            },
-          ),
-          
-          // --- Page Count ---
-          // (This logic is unchanged)
-          Text(
-            'Page ${_currentPageIndex + 1} of $totalPages',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          
-          // 🌟 --- 2. "Next" / "Done" Button --- 🌟
-          ElevatedButton.icon(
-            icon: Icon(Icons.arrow_forward),
-            
-            // 3. Change the text based on the page
-            label: Text(isLastPage ? 'Done' : 'Next'), 
-            
-            style: ElevatedButton.styleFrom(
-              // 4. (Optional) Make the "Done" button a different color
-              backgroundColor: isLastPage ? Colors.green : null, 
+          // Prev Button
+          SizedBox(
+            width: 120,
+            height: 45,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFA0701F), 
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: _currentPageIndex == 0
+                  ? null
+                  : () {
+                      _pageController.previousPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOut,
+                      );
+                    },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.arrow_back_ios_new, size: 14),
+                  SizedBox(width: 8),
+                  Text('Prev', style: TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
             ),
-            
-            // 5. Change the function based on the page
-            onPressed: () async {
-              if (isLastPage) {
-                // --- ON "DONE" ---
-                // Mark lesson complete in user's progress
-                try {
-                  await ProgressService().markLessonAsCompleted(
-                    roomId: widget.roomId,
-                    moduleId: widget.moduleId,
-                    lessonId: widget.lessonId,
-                  );
-                } catch (e) {
-                  print('Failed to mark lesson complete: $e');
-                }
+          ),
 
-                // Navigate back to the previous screen
-                Navigator.of(context).pop();
-              } else {
-                // --- ON "NEXT" ---
-                // Just go to the next page
-                _pageController.nextPage(
-                  duration: Duration(milliseconds: 300),
-                  curve: Curves.easeOut,
-                );
-              }
-            },
+          // Next / Done Button
+          SizedBox(
+            width: 120,
+            height: 45,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFA0701F), 
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () async {
+                if (isLastPage) {
+                  try {
+                    await ProgressService().markLessonAsCompleted(
+                      roomId: widget.roomId,
+                      moduleId: widget.moduleId,
+                      lessonId: widget.lessonId,
+                    );
+                  } catch (e) {
+                    print('Failed to mark lesson complete: $e');
+                  }
+                  Navigator.of(context).pop();
+                } else {
+                  _pageController.nextPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                  );
+                }
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(isLastPage ? 'Done' : 'Next', 
+                       style: const TextStyle(fontWeight: FontWeight.bold)),
+                  if (!isLastPage) ...[
+                    const SizedBox(width: 8),
+                    const Icon(Icons.arrow_forward_ios, size: 14),
+                  ],
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -244,8 +291,6 @@ class _PagedReadingScreenState extends State<PagedReadingScreen> {
 
 // -------------------------------------------------------------------
 // DYNAMIC PAGE CONTENT WIDGET
-// This widget builds the content for ONE page
-// (I've added the 'CODE' case back in for you)
 // -------------------------------------------------------------------
 class DynamicPageContent extends StatelessWidget {
   final String title;
@@ -260,24 +305,32 @@ class DynamicPageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      padding: EdgeInsets.all(16.0),
-      // We add 1 for the main page title
+      padding: const EdgeInsets.all(24.0),
+      // 🌟 FIX 2: Added checks to ensure we don't read out of bounds or read nulls
       itemCount: blocks.length + 1,
       itemBuilder: (context, index) {
-        
-        // Item 0 is the main title
         if (index == 0) {
           return Padding(
-            padding: const EdgeInsets.only(bottom: 16.0),
+            padding: const EdgeInsets.only(bottom: 20.0),
             child: Text(
               title,
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              style: gfonts.GoogleFonts.inter(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: Colors.black,
+                height: 1.2,
+              ),
             ),
           );
         }
+
+        // 🌟 FIX 3: Safe casting of the block
+        final rawBlock = blocks[index - 1];
+        if (rawBlock == null || rawBlock is! Map) {
+          return const SizedBox.shrink(); // Skip bad data
+        }
         
-        // All other items are the content blocks
-        final block = Map<String, dynamic>.from(blocks[index - 1] as Map);
+        final block = Map<String, dynamic>.from(rawBlock);
         return _buildContentWidget(context, block);
       },
     );
@@ -290,69 +343,128 @@ class DynamicPageContent extends StatelessWidget {
     switch (type) {
       case 'HEADING':
         return Padding(
-          padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
-          child: Text(text, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
+          padding: const EdgeInsets.only(top: 20.0, bottom: 12.0),
+          child: Text(
+            text,
+            style: gfonts.GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+            ),
+          ),
         );
       case 'PARAGRAPH':
         return Padding(
-          padding: const EdgeInsets.only(bottom: 8.0),
-          child: Text(text, style: TextStyle(fontSize: 16, height: 1.5)),
+          padding: const EdgeInsets.only(bottom: 16.0),
+          child: Text(
+            text,
+            style: gfonts.GoogleFonts.inter(
+              fontSize: 15,
+              height: 1.6,
+              color: const Color(0xFF333333),
+            ),
+          ),
         );
       case 'BULLET':
         return Padding(
-          padding: const EdgeInsets.only(left: 16.0, bottom: 4.0),
+          padding: const EdgeInsets.only(bottom: 12.0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("• ", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, height: 1.5)),
-              Expanded(child: Text(text, style: TextStyle(fontSize: 16, height: 1.5))),
+              const Padding(
+                padding: EdgeInsets.only(top: 6.0, right: 12.0),
+                child: Icon(Icons.circle, size: 5, color: Colors.black87),
+              ),
+              Expanded(
+                child: Text(
+                  text,
+                  style: gfonts.GoogleFonts.inter(
+                    fontSize: 15,
+                    height: 1.5,
+                    color: const Color(0xFF333333),
+                  ),
+                ),
+              ),
             ],
           ),
         );
       case 'CODE_EXAMPLE':
-        // Small, read-only code box using the same styling as the IDE
-        final CodeController _controller = CodeController(
-          text: text,
-          language: python,
-          // We keep it read-only by not exposing an editor controller externally
-        );
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Container(
-            decoration: BoxDecoration(
-              color: monokaiSublimeTheme['root']?.backgroundColor ?? Colors.black87,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade800),
-            ),
-            constraints: const BoxConstraints(minHeight: 80, maxHeight: 220),
-            padding: const EdgeInsets.all(8.0),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: MediaQuery.of(context).size.width - 64,
-                child: CodeTheme(
-                  data: CodeThemeData(styles: monokaiSublimeTheme),
-                  child: CodeField(
-                    controller: _controller,
-                    textStyle: gfonts.GoogleFonts.jetBrainsMono(fontSize: 12, height: 1.4),
-                    lineNumbers: false,
-                    readOnly: true,
-                    expands: false,
-                    maxLines: null,
-                    wrap: true,
-                    decoration: null,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
+        // 🌟 FIX 4: Moved the Code Widget to a separate Stateful widget.
+        // This prevents the Controller from recreating during build (Layout errors)
+        // and handles the themes safely.
+        return CodeBlockWidget(code: text);
+        
       default:
         return Padding(
           padding: const EdgeInsets.only(bottom: 8.0),
-          child: Text(text, style: TextStyle(fontSize: 16, height: 1.5)),
+          child: Text(text),
         );
     }
+  }
+}
+
+// -------------------------------------------------------------------
+// NEW: DEDICATED STATEFUL WIDGET FOR CODE BLOCKS
+// -------------------------------------------------------------------
+class CodeBlockWidget extends StatefulWidget {
+  final String code;
+  const CodeBlockWidget({Key? key, required this.code}) : super(key: key);
+
+  @override
+  State<CodeBlockWidget> createState() => _CodeBlockWidgetState();
+}
+
+class _CodeBlockWidgetState extends State<CodeBlockWidget> {
+  late CodeController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize controller once
+    _controller = CodeController(
+      text: widget.code,
+      language: python,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose(); // Proper cleanup
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF2D2D2D), // Dark gray
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.all(12.0),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: CodeTheme(
+            // 🌟 FIX 5: Using a robust theme. If monokai fails, it won't crash layout 
+            // because the Controller is now stable.
+            data: CodeThemeData(styles: monokaiSublimeTheme),
+            child: SizedBox(
+              // Constraints help the RenderBox know its width limits inside ListView
+              width: 600, // Give it enough width to scroll horizontally
+              child: CodeField(
+                controller: _controller,
+                textStyle: gfonts.GoogleFonts.jetBrainsMono(fontSize: 13),
+                readOnly: true,
+                lineNumbers: false,
+                decoration: null,
+                // Prevent keyboard popping up on read-only code
+                enabled: false, 
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

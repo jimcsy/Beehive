@@ -282,7 +282,7 @@ class _RoomExpansionCardState extends State<RoomExpansionCard> {
           AnimatedCrossFade(
             firstChild: Container(),
             secondChild: Container(
-              color: const Color.fromARGB(255, 255, 206, 109),
+              color: const Color.fromARGB(255, 244, 214, 154),
               child: _buildExpandableChildren(),
             ),
             crossFadeState:

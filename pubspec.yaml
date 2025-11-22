@@ -89,6 +89,12 @@ flutter:
     - assets/icons/
     - assets/icons/gifs/
     - assets/icons/images/
+    - assets/icons/images/reading.png
+    - assets/icons/images/vid_tutorial.png
+    - assets/icons/images/quiz.png
+    - assets/icons/images/ide_practice.png
+    - assets/icons/images/activity.png
+    - assets/icons/images/lock.png
     - assets/python_assets/final_bundle.zip
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

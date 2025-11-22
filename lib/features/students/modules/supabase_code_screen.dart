@@ -16,14 +16,14 @@ class CodeScreen extends StatefulWidget {
   final String? contentID;
   final String moduleId;
   final String lessonId;
-  final String roomId; // 👈 ADDED: Required for room-specific progress
+  final String roomId;
 
   const CodeScreen({
     Key? key,
     this.contentID,
     required this.moduleId,
     required this.lessonId,
-    required this.roomId, // 👈 ADDED
+    required this.roomId,
   }) : super(key: key);
 
   @override
@@ -33,8 +33,12 @@ class CodeScreen extends StatefulWidget {
 class _CodeScreenState extends State<CodeScreen> {
   late final CodeController _codeController;
 
+  // Content Variables
+  String _lessonTitle = "Introduction to Python"; // You can make this dynamic later
+  String _subTitle = "Basic Operators"; // You can make this dynamic later
   String _directions = "Loading instructions...";
   String _guideCode = "";
+  String _expectedOutput = "Loading expected output..."; // New variable for the black box
 
   bool _isLoading = true;
   bool _isCodingMode = false;
@@ -76,6 +80,11 @@ class _CodeScreenState extends State<CodeScreen> {
       if (mounted) {
         setState(() {
           _directions = response['directions'] ?? "No directions.";
+          
+          // Handle expected output (Mocking it if DB column doesn't exist yet)
+          _expectedOutput = response['expectedOutput'] ?? 
+              "Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet";
+
           String rawCode = response['guideCode'] ?? "";
           _guideCode = rawCode.replaceAll(r'\n', '\n');
           _codeController.text = _guideCode;
@@ -87,13 +96,14 @@ class _CodeScreenState extends State<CodeScreen> {
       if (mounted) {
         setState(() {
           _directions = "Error loading problem.";
+          _expectedOutput = "Error loading data.";
           _isLoading = false;
         });
       }
     }
   }
 
-  // Robust executor (tries multiple hosts)
+  // ... [Keep existing executor logic unchanged] ...
   Future<void> _executePythonCode() async {
     setState(() {
       _isRunningCode = true;
@@ -102,7 +112,6 @@ class _CodeScreenState extends State<CodeScreen> {
     final List<String> tryHosts = [
       'http://127.0.0.1:5000',
       'http://10.0.2.2:5000',
-      // Add 'http://192.168.x.x:5000' if testing on a device
     ];
 
     try {
@@ -174,21 +183,34 @@ class _CodeScreenState extends State<CodeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white, // Match clean white background
       appBar: AppBar(
-        title: Text(_isCodingMode ? "Code Editor" : "Instructions"),
-        leading: _isCodingMode
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _isCodingMode = false))
-            : null,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black),
+        title: Text(
+          _isCodingMode ? "Code Editor" : "", 
+          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+          onPressed: () {
+            if (_isCodingMode) {
+              setState(() => _isCodingMode = false);
+            } else {
+              Navigator.pop(context);
+            }
+          },
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFA07020)))
           : _isCodingMode
               ? _buildEditorView()
               : _buildInstructionsView(),
       floatingActionButton: _isCodingMode
           ? FloatingActionButton(
+              backgroundColor: const Color(0xFFA07020),
               onPressed: _isRunningCode ? null : _executePythonCode,
               child: _isRunningCode
                   ? const CircularProgressIndicator(color: Colors.white)
@@ -200,50 +222,121 @@ class _CodeScreenState extends State<CodeScreen> {
 
   Widget _buildInstructionsView() {
     return Padding(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 🌟 WRAP CONTENT IN EXPANDED + SCROLLVIEW
+          // 🌟 SCROLLABLE CONTENT AREA
           Expanded(
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Directions:",
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  Text(_directions, style: const TextStyle(fontSize: 16)),
-                  const Divider(height: 40),
-                  const Text("Starter Code:",
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    color: Colors.grey[200],
-                    width: double.infinity,
-                    child: Text(_guideCode,
-                        style: const TextStyle(fontFamily: 'monospace')),
+                  // Title Section
+                  Center(
+                    child: Text(
+                      _lessonTitle,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 22, 
+                        fontWeight: FontWeight.w900,
+                        color: Colors.black
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 20), // Extra space at bottom of scroll
+                  const SizedBox(height: 16),
+                  
+                  // Subtitle
+                  Center(
+                    child: Text(
+                      _subTitle,
+                      style: const TextStyle(
+                        fontSize: 16, 
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+
+                  // Directions Header
+                  const Text(
+                    "Directions:",
+                    style: TextStyle(
+                      fontSize: 18, 
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Directions Body
+                  Text(
+                    _directions, 
+                    style: TextStyle(
+                      fontSize: 14, 
+                      height: 1.5, 
+                      color: Colors.grey[800]
+                    )
+                  ),
+                  
+                  const SizedBox(height: 40),
+
+                  // Expected Output Header
+                  const Text(
+                    "Expected Output:",
+                    style: TextStyle(
+                      fontSize: 18, 
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 🌟 BLACK BOX (Expected Output, NOT Code)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _expectedOutput,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'monospace', // Terminal look
+                        fontSize: 13,
+                        height: 1.4
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20), 
                 ],
               ),
             ),
           ),
-          
-          // 🌟 BUTTON STAYS FIXED AT THE BOTTOM
+           
+          // 🌟 GOLD "CONTINUE" BUTTON
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 55,
             child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF9F7426), // Gold/Brown color from image
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
               onPressed: () {
                 Navigator.push<String?>(
                     context,
                     MaterialPageRoute(
                         builder: (context) =>
                             IdeScreen(initialCode: _guideCode))).then(
-                    (submittedCode) async {
+                  (submittedCode) async {
                   if (submittedCode != null) {
                     if (widget.contentID != null) {
                       try {
@@ -281,9 +374,17 @@ class _CodeScreenState extends State<CodeScreen> {
                   }
                 });
               },
-              child: const Text("START CODING"),
+              child: const Text(
+                "Continue",
+                style: TextStyle(
+                  fontSize: 16, 
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white
+                ),
+              ),
             ),
           ),
+          const SizedBox(height: 20), // Bottom safe area padding
         ],
       ),
     );

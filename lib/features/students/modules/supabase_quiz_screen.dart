@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert'; 
 import 'package:beehive/features/students/modules/progress_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_fonts/google_fonts.dart'; // Ensure this is in pubspec.yaml
 
 class QuizLessonScreen extends StatefulWidget {
   final List<String> contentIDs;
@@ -27,13 +28,11 @@ class QuizLessonScreen extends StatefulWidget {
 }
 
 class _QuizLessonScreenState extends State<QuizLessonScreen> {
-  // 🌟 We use 'late' here, so we MUST assign it immediately in initState
   late final Future<List<Map<String, dynamic>>> _fetchQuestions;
   
   final Map<String, String> _userAnswers = {};
   bool _isSaving = false;
   
-  // State for Logic
   bool _hasTakenQuiz = false;
   int _attemptsUsed = 0;
   int _previousScore = 0;
@@ -42,10 +41,7 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
   @override
   void initState() {
     super.initState();
-    // 🌟 FIX: Initialize this IMMEDIATELY so the UI has something to load
     _fetchQuestions = _loadQuestionsFromSupabase();
-
-    // Then check Firestore in the background (doesn't block UI)
     _checkPreviousProgress(); 
   }
 
@@ -69,8 +65,6 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
           setState(() {
             _attemptsUsed = attemptsMap[widget.lessonId] ?? 0;
             _previousScore = scoresMap[widget.lessonId] ?? 0;
-            
-            // If they used attempts, show the summary screen first
             if (_attemptsUsed > 0) {
               _hasTakenQuiz = true;
             }
@@ -92,7 +86,6 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
           .select()
           .inFilter('lessonContentId', widget.contentIDs);
 
-      // Sort based on ID order
       final Map<String, Map<String, dynamic>> questionMap = {
         for (var q in fetchedQuestions) q['lessonContentId']: q
       };
@@ -105,9 +98,64 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
       return sortedQuestions;
     } catch (e) {
       print('Error fetching quiz: $e');
-      // Return empty list instead of crashing if error occurs
       return [];
     }
+  }
+
+  // 🌟 NEW: Shows the confirmation dialog before submitting
+  void _showSubmitConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Center(
+          child: Text(
+            "Are you sure?",
+            style: GoogleFonts.inter(
+              fontSize: 20, 
+              fontWeight: FontWeight.bold,
+              color: Colors.black
+            ),
+          ),
+        ),
+        contentPadding: const EdgeInsets.only(top: 20, bottom: 24, left: 24, right: 24),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          // NO Button (Gold/Yellow)
+          SizedBox(
+            width: 100,
+            height: 45,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE0C068), // Light Gold
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text("No", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          // YES Button (Dark Brown/Gold)
+          SizedBox(
+            width: 100,
+            height: 45,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFA0701F), // Dark Gold
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              onPressed: () {
+                Navigator.pop(context); // Close dialog
+                _submitQuiz(); // Proceed to submit
+              },
+              child: const Text("Yes", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _submitQuiz() async {
@@ -116,12 +164,10 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
     });
 
     try {
-      // We await the same future here to get the questions list for grading
       final questions = await _fetchQuestions;
       final int totalQuestions = questions.length;
       int correctCount = 0;
 
-      // Calculate score
       for (final q in questions) {
         final String qId = q['lessonContentId'] ?? '';
         final String correct = (q['correctAnswer'] ?? '').toString();
@@ -132,7 +178,6 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
         }
       }
 
-      // 1. Save to Supabase (optional log)
       final Map<String, dynamic> submissionRow = {
         'userId': widget.userId,
         'moduleId': widget.moduleId,
@@ -144,14 +189,12 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
       };
 
       final supabase = Supabase.instance.client;
-      // Wrap in try-catch so Supabase failure doesn't stop Firestore progress
       try {
         await supabase.from('QuizSubmission').insert(submissionRow);
       } catch (e) {
         print("Supabase save error (non-fatal): $e");
       }
 
-      // 2. Save to Firestore (Progress & Attempts)
       await ProgressService().saveQuizResult(
         roomId: widget.roomId,
         moduleId: widget.moduleId,
@@ -160,7 +203,6 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
         totalQuestions: totalQuestions,
       );
 
-      // 3. Update Local State
       if (mounted) {
         setState(() {
           _hasTakenQuiz = true;
@@ -196,11 +238,18 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.lessonTitle)),
+      backgroundColor: Colors.white, // Clean background like Image 2
+      appBar: AppBar(
+        title: Text(widget.lessonTitle, style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.w700)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        leading: const BackButton(color: Colors.black),
+      ),
       body: _hasTakenQuiz 
           ? _buildSummaryScreen()
           : FutureBuilder<List<Map<String, dynamic>>>(
-              future: _fetchQuestions, // This is now guaranteed to be initialized
+              future: _fetchQuestions,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -216,26 +265,52 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
 
                 return Column(
                   children: [
+                    // 🌟 Progress Bar (Visual flair like Image 2)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10),
+                      child: LinearProgressIndicator(
+                        value: _userAnswers.length / questions.length, // Dynamic progress
+                        backgroundColor: Colors.grey[300],
+                        color: const Color(0xFFA0701F), // Gold
+                        minHeight: 6,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+
                     Expanded(
                       child: ListView.builder(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10),
                         itemCount: questions.length,
                         itemBuilder: (context, index) {
                           final question = questions[index];
-                          return _buildQuestionCard(question, index + 1);
+                          return _buildStyledQuestionCard(question, index + 1);
                         },
                       ),
                     ),
+                    
+                    // 🌟 Submit Button
                     Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: ElevatedButton(
-                        onPressed: _isSaving ? null : _submitQuiz,
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 50),
+                      padding: const EdgeInsets.all(24.0),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 55,
+                        child: ElevatedButton(
+                          // 🌟 Calls the confirmation dialog now
+                          onPressed: _isSaving ? null : _showSubmitConfirmation, 
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFA0701F), // Gold/Brown
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: _isSaving 
+                            ? const SizedBox(height:24, width:24, child: CircularProgressIndicator(color: Colors.white, strokeWidth:2)) 
+                            : Text(
+                                "Submit Quiz", 
+                                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)
+                              ),
                         ),
-                        child: _isSaving 
-                          ? const SizedBox(height:20, width:20, child: CircularProgressIndicator(color: Colors.white, strokeWidth:2)) 
-                          : const Text("Submit Quiz"),
                       ),
                     ),
                   ],
@@ -256,31 +331,35 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
           children: [
             const Icon(Icons.assignment_turned_in, size: 80, color: Color(0xFFA0701F)),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               "Quiz Completed!",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+              color: Colors.grey[50],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.grey[200]!),
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.all(30.0),
                 child: Column(
                   children: [
                     Text(
                       "Best Score",
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600]),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
                     Text(
-                      "$_previousScore", // Can add /total if you want to calculate it
-                      style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green),
+                      "$_previousScore",
+                      style: GoogleFonts.inter(fontSize: 40, fontWeight: FontWeight.w800, color: const Color(0xFFA0701F)),
                     ),
-                    const Divider(height: 30),
+                    const Divider(height: 40),
                     Text(
                       "Attempts Used: $_attemptsUsed / $_maxAttempts",
-                      style: TextStyle(fontSize: 16, color: Colors.grey[800]),
+                      style: GoogleFonts.inter(fontSize: 16, color: Colors.grey[800]),
                     ),
                   ],
                 ),
@@ -290,7 +369,7 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
             if (canRetake)
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 55,
                 child: ElevatedButton.icon(
                   onPressed: _retakeQuiz,
                   icon: const Icon(Icons.refresh),
@@ -298,15 +377,17 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFA0701F),
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
                   ),
                 ),
               )
             else
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.red[200]!),
                 ),
                 child: const Text(
@@ -320,11 +401,11 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
     );
   }
 
-  Widget _buildQuestionCard(Map<String, dynamic> questionData, int number) {
+  // 🌟 STYLED QUESTION CARD (Matches Image 2)
+  Widget _buildStyledQuestionCard(Map<String, dynamic> questionData, int number) {
     final String id = questionData['lessonContentId'];
     final String text = questionData['questionText'] ?? 'No Question Text';
 
-    // Safe Parsing for choices/options
     final rawOptions = questionData['choices'] ?? questionData['options'];
     final Map<String, dynamic> choices = (rawOptions is String)
         ? jsonDecode(rawOptions)
@@ -332,35 +413,71 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
 
     final String? selectedAnswer = _userAnswers[id];
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "$number. $text",
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            ...choices.entries.map((entry) {
-              final String key = entry.key;
-              final String val = entry.value.toString();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 32.0), // Space between questions
+      padding: const EdgeInsets.all(20), // Padding inside grey box
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9F9F9), // Very light grey background like Image 2
+        borderRadius: BorderRadius.circular(12), 
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Question Number
+          Text(
+            "Q$number.",
+            style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.black),
+          ),
+          const SizedBox(height: 12),
+          
+          // Question Text
+          Text(
+            text,
+            style: GoogleFonts.inter(fontSize: 15, height: 1.5, color: Colors.black87),
+          ),
+          const SizedBox(height: 24),
 
-              return RadioListTile<String>(
-                title: Text("$key. $val"),
-                value: key,
-                groupValue: selectedAnswer,
-                onChanged: (value) {
+          // Options List
+          ...choices.entries.map((entry) {
+            final String key = entry.key; // "a", "b"
+            final String val = entry.value.toString(); // "web development..."
+            final bool isSelected = selectedAnswer == key;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: InkWell(
+                onTap: () {
                   setState(() {
-                    _userAnswers[id] = value!;
+                    _userAnswers[id] = key;
                   });
                 },
-              );
-            }).toList(),
-          ],
-        ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  decoration: BoxDecoration(
+                    // Grey background for options, Darker grey if selected
+                    color: isSelected ? const Color.fromARGB(255, 146, 145, 145) : const Color(0xFFE0E0E0),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        "$key.)",
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          val,
+                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ],
       ),
     );
   }
