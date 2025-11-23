@@ -208,9 +208,9 @@ class UserDrawer extends StatelessWidget {
                   ),
                   ListTile(
                     leading: const Icon(Icons.settings_outlined),
-                    title: const Text('Add Module', style: TextStyle(fontSize: 14)),
+                    title: const Text('Settings', style: TextStyle(fontSize: 14)),
                     onTap: () {
-                      _navigateTo(context, const AddModulePage());
+                      _navigateTo(context, const TSettingsPage());
                     },
                   ),
                   ListTile(

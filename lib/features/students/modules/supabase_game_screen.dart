@@ -207,7 +207,7 @@ class _DragDropGameScreenState extends State<DragDropGameScreen> {
                   Text(
                     isCorrect ? "Correct!" : "Incorrect!",
                     style: GoogleFonts.inter(
-                      fontSize: 24,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: isCorrect ? const Color(0xFF5D4037) : Colors.black87,
                     ),
@@ -239,7 +239,7 @@ class _DragDropGameScreenState extends State<DragDropGameScreen> {
                   child: Text(
                     isCorrect ? "Continue" : "Try again",
                     style: GoogleFonts.inter(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -320,7 +320,7 @@ class ActivityGoalScreen extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               "Activity Goal",
-              style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
+              style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
             ),
             const SizedBox(height: 16),
             Text(
@@ -343,7 +343,7 @@ class ActivityGoalScreen extends StatelessWidget {
                     color: const Color(0xFFA0701F), // Gold/Brown
                     child: Text(
                       "python",
-                      style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16),
+                      style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
                     ),
                   ),
                   // Body
@@ -360,7 +360,7 @@ class ActivityGoalScreen extends StatelessWidget {
                             codeLines.isEmpty ? 1 : codeLines.length, 
                             (i) => Padding(
                               padding: const EdgeInsets.only(bottom: 4.0),
-                              child: Text("${i + 1}", style: GoogleFonts.jetBrainsMono(color: const Color(0xFFA0701F), fontSize: 16)),
+                              child: Text("${i + 1}", style: GoogleFonts.jetBrainsMono(color: const Color(0xFFA0701F), fontSize: 14)),
                             ),
                           ),
                         ),
@@ -404,7 +404,7 @@ class ActivityGoalScreen extends StatelessWidget {
                 onPressed: onContinue,
                 child: Text(
                   "Continue",
-                  style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ),
             ),
@@ -508,7 +508,7 @@ class _CompleteStatementGameState extends State<CompleteStatementGame> {
           Text(
             "Complete the sentence below correctly.",
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700]),
+            style: GoogleFonts.inter(fontSize: 16, color: Colors.grey[700]),
           ),
           const SizedBox(height: 24),
 
@@ -530,7 +530,7 @@ class _CompleteStatementGameState extends State<CompleteStatementGame> {
                     alignment: WrapAlignment.center,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Text(startText, style: GoogleFonts.jetBrainsMono(fontSize: 16, color: Colors.white)),
+                      Text(startText, style: GoogleFonts.jetBrainsMono(fontSize: 14, color: Colors.white)),
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 8),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -542,13 +542,13 @@ class _CompleteStatementGameState extends State<CompleteStatementGame> {
                         child: Text(
                           _selectedAnswer ?? " ? ",
                           style: GoogleFonts.jetBrainsMono(
-                            fontSize: 16, 
+                            fontSize: 14, 
                             fontWeight: FontWeight.bold, 
                             color: Colors.amber
                           ),
                         ),
                       ),
-                      Text(endText, style: GoogleFonts.jetBrainsMono(fontSize: 16, color: Colors.white)),
+                      Text(endText, style: GoogleFonts.jetBrainsMono(fontSize: 14, color: Colors.white)),
                     ],
                   ),
                 ),
@@ -574,7 +574,7 @@ class _CompleteStatementGameState extends State<CompleteStatementGame> {
                   child: Center(
                     child: Text(
                       _choices[key],
-                      style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+                      style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
                     ),
                   ),
                 ),
@@ -638,7 +638,7 @@ class _SingleDragDropGameState extends State<SingleDragDropGame> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text("Variables and Data Types", style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w500)),
+          Text("Variables and Data Types", style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w500)),
           const SizedBox(height: 5),
           Icon(Icons.more_horiz, color: Colors.grey[600]), 
           const SizedBox(height: 5),
@@ -647,7 +647,7 @@ class _SingleDragDropGameState extends State<SingleDragDropGame> {
           Text(
             _questionText, 
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700], height: 1.4),
+            style: GoogleFonts.inter(fontSize: 15, color: Colors.grey[700], height: 1.4),
           ),
           const SizedBox(height: 24),
           _buildStyledCodeBlock(),

@@ -112,7 +112,7 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
           child: Text(
             "Are you sure?",
             style: GoogleFonts.inter(
-              fontSize: 20, 
+              fontSize: 18, 
               fontWeight: FontWeight.bold,
               color: Colors.black
             ),
@@ -455,7 +455,7 @@ class _QuizLessonScreenState extends State<QuizLessonScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                   decoration: BoxDecoration(
                     // Grey background for options, Darker grey if selected
-                    color: isSelected ? const Color.fromARGB(255, 146, 145, 145) : const Color(0xFFE0E0E0),
+                    color: isSelected ? const Color.fromARGB(255, 149, 149, 149) : const Color(0xFFE0E0E0),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(

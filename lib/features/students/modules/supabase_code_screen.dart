@@ -215,7 +215,7 @@ class _CodeScreenState extends State<CodeScreen> {
                     child: Text(
                       _subTitle,
                       style: const TextStyle(
-                        fontSize: 16, 
+                        fontSize: 18, 
                         fontWeight: FontWeight.w500,
                         color: Colors.black87
                       ),
@@ -227,7 +227,7 @@ class _CodeScreenState extends State<CodeScreen> {
                   const Text(
                     "Directions:",
                     style: TextStyle(
-                      fontSize: 18, 
+                      fontSize: 16, 
                       fontWeight: FontWeight.bold,
                       color: Colors.black
                     ),
@@ -250,7 +250,7 @@ class _CodeScreenState extends State<CodeScreen> {
                   const Text(
                     "Expected Output:",
                     style: TextStyle(
-                      fontSize: 18, 
+                      fontSize: 16, 
                       fontWeight: FontWeight.bold,
                       color: Colors.black
                     ),
@@ -270,7 +270,7 @@ class _CodeScreenState extends State<CodeScreen> {
                       style: const TextStyle(
                         color: Colors.white,
                         fontFamily: 'monospace', // Terminal look
-                        fontSize: 13,
+                        fontSize: 14,
                         height: 1.4
                       ),
                     ),

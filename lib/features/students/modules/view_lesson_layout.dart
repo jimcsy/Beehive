@@ -208,7 +208,7 @@ class ViewUnitsLayout extends StatelessWidget {
     List<DocumentSnapshot> lessons,
     int selectedIndex,
   ) {
-    const double hiveSize = 120.0;
+    const double hiveSize = 100.0;
     final double verticalSpacingFactor = 0.64;
     final double ySeparation = hiveSize * 0.72 * verticalSpacingFactor;
     final double xSeparation = hiveSize * 0.80;
@@ -321,7 +321,7 @@ class ViewUnitsLayout extends StatelessWidget {
         children: [
           // 🌟 PROGRESS BAR AREA 🌟
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 45.0, vertical: 20.0),
+            padding: const EdgeInsets.symmetric(horizontal: 45.0, vertical: 10.0),
             child: Row(
               children: [
                 Expanded(
@@ -367,10 +367,10 @@ class ViewUnitsLayout extends StatelessWidget {
           Expanded(
             child: Container(
               // 🌟 CHANGE: RESTORED PADDING TO EdgeInsets.all(20) (Similar to Last File) 🌟
-              margin: const EdgeInsets.all(20), 
+              margin: const EdgeInsets.all(10), 
               decoration: const BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.all(Radius.circular(24)), // Made all corners rounded
+                borderRadius: BorderRadius.all(Radius.circular(20)), // Made all corners rounded
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black12,
@@ -382,7 +382,7 @@ class ViewUnitsLayout extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  const SizedBox(height: 16), // Top padding (Replaces the handle)
+                  const SizedBox(height: 5), // Top padding (Replaces the handle)
                   Expanded(
                     child: ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
