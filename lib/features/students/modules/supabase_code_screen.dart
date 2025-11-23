@@ -5,11 +5,10 @@ import 'package:highlight/languages/python.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
-import 'dart:io' show Platform;
 
+// Keep your project specific imports
 import 'package:beehive/python_ide/code_editor.dart';
-import 'package:beehive/main.dart';
-import 'package:beehive/python_ide/ide_test_screen.dart';
+import 'package:beehive/python_ide/ide_test_screen.dart'; // Ensure this matches your file name for IdeScreen
 import 'package:beehive/features/students/modules/progress_service.dart';
 
 class CodeScreen extends StatefulWidget {
@@ -34,11 +33,11 @@ class _CodeScreenState extends State<CodeScreen> {
   late final CodeController _codeController;
 
   // Content Variables
-  String _lessonTitle = "Introduction to Python"; // You can make this dynamic later
-  String _subTitle = "Basic Operators"; // You can make this dynamic later
+  String _lessonTitle = "Introduction to Python"; 
+  String _subTitle = "Basic Operators"; 
   String _directions = "Loading instructions...";
   String _guideCode = "";
-  String _expectedOutput = "Loading expected output..."; // New variable for the black box
+  String _expectedOutput = "Loading expected output..."; 
 
   bool _isLoading = true;
   bool _isCodingMode = false;
@@ -56,6 +55,7 @@ class _CodeScreenState extends State<CodeScreen> {
     if (widget.contentID != null) {
       _loadPracticeProblem();
     } else {
+      // Fallback if no content ID provided
       _codeController.text = "print('Hello World')";
       _isLoading = false;
       _isCodingMode = true;
@@ -71,25 +71,31 @@ class _CodeScreenState extends State<CodeScreen> {
   Future<void> _loadPracticeProblem() async {
     final supabase = Supabase.instance.client;
     try {
+      // ✅ FIX: Use maybeSingle() to prevent crash if data is missing
       final response = await supabase
           .from('IDEPractice')
           .select()
           .eq('lessonContentId', widget.contentID!)
-          .single();
+          .maybeSingle(); 
 
       if (mounted) {
-        setState(() {
-          _directions = response['directions'] ?? "No directions.";
-          
-          // Handle expected output (Mocking it if DB column doesn't exist yet)
-          _expectedOutput = response['expectedOutput'] ?? 
-              "Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet";
-
-          String rawCode = response['guideCode'] ?? "";
-          _guideCode = rawCode.replaceAll(r'\n', '\n');
-          _codeController.text = _guideCode;
-          _isLoading = false;
-        });
+        if (response == null) {
+           setState(() {
+            _directions = "Problem not found in database.";
+            _expectedOutput = "N/A";
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _directions = response['directions'] ?? "No directions.";
+            _expectedOutput = response['expectedOutput'] ?? "No expected output provided.";
+            
+            String rawCode = response['guideCode'] ?? "";
+            _guideCode = rawCode.replaceAll(r'\n', '\n');
+            _codeController.text = _guideCode;
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       debugPrint("Error loading practice problem: $e");
@@ -103,77 +109,46 @@ class _CodeScreenState extends State<CodeScreen> {
     }
   }
 
-  // ... [Keep existing executor logic unchanged] ...
   Future<void> _executePythonCode() async {
     setState(() {
       _isRunningCode = true;
     });
 
-    final List<String> tryHosts = [
-      'http://127.0.0.1:5000',
-      'http://10.0.2.2:5000',
-    ];
-
-    try {
-      if (Platform.isAndroid) {
-        tryHosts.remove('http://10.0.2.2:5000');
-        tryHosts.insert(0, 'http://10.0.2.2:5000');
-      } else if (Platform.isIOS) {
-        tryHosts.remove('http://127.0.0.1:5000');
-        tryHosts.insert(0, 'http://127.0.0.1:5000');
-      }
-    } catch (_) {}
+    // ✅ FIX: Embedded Python always listens on 127.0.0.1 inside the device
+    final String url = 'http://127.0.0.1:5000/execute';
 
     String outputText = "";
-    Object? lastEx;
 
-    for (final base in tryHosts) {
-      final url = Uri.parse('$base/execute');
-      try {
-        final response = await http
-            .post(url, body: {'code': _codeController.text}).timeout(
-                const Duration(seconds: 10));
-        final data = jsonDecode(response.body);
-        final String output = (data['output'] ?? '').toString();
-        final String error = (data['error'] ?? '').toString();
-        outputText = error.isNotEmpty ? "$output\nError: $error" : output;
-        lastEx = null;
-        break;
-      } on TimeoutException catch (te) {
-        lastEx = te;
-        continue;
-      } catch (e) {
-        lastEx = e;
-        continue;
-      }
-    }
+    try {
+      final response = await http
+          .post(Uri.parse(url), body: {'code': _codeController.text})
+          .timeout(const Duration(seconds: 10)); // 10s timeout
 
-    if (lastEx != null && outputText.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  "Error: Could not reach Python server. Check logs or server status.")),
-        );
-      }
-    } else {
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text("Output"),
-            content: Text(outputText),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("OK"))
-            ],
-          ),
-        );
-      }
+      final data = jsonDecode(response.body);
+      final String output = (data['output'] ?? '').toString();
+      final String error = (data['error'] ?? '').toString();
+      
+      outputText = error.isNotEmpty ? "$output\nError: $error" : output;
+
+    } on TimeoutException {
+      outputText = "Error: Connection timed out. \nThe Python server is still starting up. Please try again in 5 seconds.";
+    } catch (e) {
+      outputText = "Error connecting to Python server:\n$e\n\nEnsure start_server() is running in your Python script.";
     }
 
     if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Output"),
+          content: Text(outputText),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("OK"))
+          ],
+        ),
+      );
       setState(() {
         _isRunningCode = false;
       });
@@ -183,7 +158,7 @@ class _CodeScreenState extends State<CodeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Match clean white background
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -226,13 +201,11 @@ class _CodeScreenState extends State<CodeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 🌟 SCROLLABLE CONTENT AREA
           Expanded(
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title Section
                   Center(
                     child: Text(
                       _lessonTitle,
@@ -246,7 +219,6 @@ class _CodeScreenState extends State<CodeScreen> {
                   ),
                   const SizedBox(height: 16),
                   
-                  // Subtitle
                   Center(
                     child: Text(
                       _subTitle,
@@ -259,7 +231,6 @@ class _CodeScreenState extends State<CodeScreen> {
                   ),
                   const SizedBox(height: 40),
 
-                  // Directions Header
                   const Text(
                     "Directions:",
                     style: TextStyle(
@@ -270,7 +241,6 @@ class _CodeScreenState extends State<CodeScreen> {
                   ),
                   const SizedBox(height: 12),
                   
-                  // Directions Body
                   Text(
                     _directions, 
                     style: TextStyle(
@@ -282,7 +252,6 @@ class _CodeScreenState extends State<CodeScreen> {
                   
                   const SizedBox(height: 40),
 
-                  // Expected Output Header
                   const Text(
                     "Expected Output:",
                     style: TextStyle(
@@ -293,7 +262,6 @@ class _CodeScreenState extends State<CodeScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // 🌟 BLACK BOX (Expected Output, NOT Code)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
@@ -305,7 +273,7 @@ class _CodeScreenState extends State<CodeScreen> {
                       _expectedOutput,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontFamily: 'monospace', // Terminal look
+                        fontFamily: 'monospace',
                         fontSize: 13,
                         height: 1.4
                       ),
@@ -316,26 +284,27 @@ class _CodeScreenState extends State<CodeScreen> {
               ),
             ),
           ),
-           
-          // 🌟 GOLD "CONTINUE" BUTTON
+            
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             height: 55,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9F7426), // Gold/Brown color from image
+                backgroundColor: const Color(0xFF9F7426), 
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
                 elevation: 0,
               ),
               onPressed: () {
+                // ✅ FIX: Navigate to IDE Screen passing the CURRENT user code
                 Navigator.push<String?>(
                     context,
                     MaterialPageRoute(
                         builder: (context) =>
-                            IdeScreen(initialCode: _guideCode))).then(
+                            // We pass _codeController.text so user edits are preserved
+                            IdeScreen(initialCode: _codeController.text))).then(
                   (submittedCode) async {
                   if (submittedCode != null) {
                     if (widget.contentID != null) {
@@ -384,7 +353,7 @@ class _CodeScreenState extends State<CodeScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 20), // Bottom safe area padding
+          const SizedBox(height: 20),
         ],
       ),
     );

@@ -208,7 +208,7 @@ class ViewUnitsLayout extends StatelessWidget {
     List<DocumentSnapshot> lessons,
     int selectedIndex,
   ) {
-    const double hiveSize = 120.0;
+    const double hiveSize = 100.0;
     final double verticalSpacingFactor = 0.64;
     final double ySeparation = hiveSize * 0.72 * verticalSpacingFactor;
     final double xSeparation = hiveSize * 0.80;
@@ -321,7 +321,7 @@ class ViewUnitsLayout extends StatelessWidget {
         children: [
           // 🌟 PROGRESS BAR AREA 🌟
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 45.0, vertical: 20.0),
+            padding: const EdgeInsets.symmetric(horizontal: 45.0, vertical: 0),
             child: Row(
               children: [
                 Expanded(
@@ -356,8 +356,8 @@ class ViewUnitsLayout extends StatelessWidget {
                   "${(progress * 100).toInt()}%",
                   style: const TextStyle(
                     color: Color.fromARGB(221, 129, 116, 0),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    fontSize: 10,
                   ),
                 ),
               ],
