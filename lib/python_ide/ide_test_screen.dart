@@ -42,6 +42,7 @@ class _IdeScreenState extends State<IdeScreen> {
     super.dispose();
   }
 
+  // --- INTEGRATED: your old detailed executor (uses 127.0.0.1 and debug logs) ---
   Future<void> _executePythonCode() async {
     setState(() {
       _isLoading = true;
@@ -51,75 +52,41 @@ class _IdeScreenState extends State<IdeScreen> {
     final scaffoldContext = context;
     showOutputModal(scaffoldContext, _consoleOutput, _isLoading);
 
-    // Hosts to try. Add your machine LAN IP here if testing on a physical device:
-    // e.g. 'http://192.168.1.100:5000'
-    final List<String> tryHosts = [
-      'http://127.0.0.1:5000', // iOS simulator / desktop
-      'http://10.0.2.2:5000', // Android emulator
-      // 'http://192.168.1.100:5000', // <-- add your dev machine LAN IP if testing on device
-    ];
-
-    // Prefer host depending on platform
-    try {
-      if (Platform.isAndroid) {
-        // Android emulator needs 10.0.2.2
-        tryHosts.remove('http://10.0.2.2:5000');
-        tryHosts.insert(0, 'http://10.0.2.2:5000');
-      } else if (Platform.isIOS) {
-        // iOS simulator can use localhost
-        tryHosts.remove('http://127.0.0.1:5000');
-        tryHosts.insert(0, 'http://127.0.0.1:5000');
-      }
-    } catch (_) {
-      // Platform may be unavailable on web; ignore
-    }
-
+    // NOTE: this uses the original hardcoded localhost address (127.0.0.1).
+    // If you're testing on Android emulator, change to 10.0.2.2 in this URL.
+    final url = Uri.parse('http://127.0.0.1:5000/execute');
     String newOutput = "";
-    Object? lastException;
 
+    debugPrint("[DEBUG] Sending POST request to: $url");
     debugPrint("[DEBUG] Code to execute:\n${_codeController.text}");
 
-    for (final base in tryHosts) {
-      final url = Uri.parse('$base/execute');
-      debugPrint("[DEBUG] Trying python server at: $url");
+    try {
+      final response = await http.post(
+        url,
+        body: {'code': _codeController.text},
+      ).timeout(const Duration(seconds: 15));
 
-      try {
-        final response = await http.post(url, body: {'code': _codeController.text}).timeout(const Duration(seconds: 15));
-        debugPrint("[DEBUG] Response status: ${response.statusCode}");
-        debugPrint("[DEBUG] Raw response body: ${response.body}");
-        final data = jsonDecode(response.body);
+      debugPrint("[DEBUG] Response status: ${response.statusCode}");
+      debugPrint("[DEBUG] Raw response body: ${response.body}");
 
-        final String output = (data['output'] ?? '').toString();
-        final String error = (data['error'] ?? '').toString();
+      final data = jsonDecode(response.body);
 
-        if (error.isNotEmpty) {
-          newOutput = "$output\nError: $error";
-        } else {
-          newOutput = output;
-        }
-
-        lastException = null;
-        break; // success -> stop trying hosts
-      } on TimeoutException catch (te) {
-        debugPrint("[DEBUG] Timeout to $base: $te");
-        lastException = te;
-        continue; // try next host
-      } catch (e) {
-        debugPrint("[DEBUG] Error connecting to $base : $e");
-        lastException = e;
-        continue; // try next host
+      // The server returns JSON with keys 'output' and 'error'
+      if (data['error'] != null && data['error'].toString().isNotEmpty) {
+        newOutput = "${data['output'] ?? ''}\nError: ${data['error']}";
+      } else {
+        newOutput = data['output'] ?? '';
       }
-    }
-
-    if (lastException != null && newOutput.isEmpty) {
-      newOutput = "Error connecting to Python server.\n\nPossible fixes:\n"
-          "- Make sure the Python server is running on port 5000.\n"
-          "- If you're using Android emulator, the app should use 10.0.2.2:5000.\n"
-          "- If you're testing on a real device, add your computer's LAN IP to the host list and open firewall.\n\nLast error: $lastException";
+    } on TimeoutException {
+      debugPrint("[DEBUG] Timeout error: Server took too long to respond.");
+      newOutput = "Error: Code execution timed out (15 seconds).";
+    } catch (e) {
+      debugPrint("[DEBUG] Exception caught: $e");
+      newOutput = "Error connecting to Python server:\n$e";
     }
 
     if (scaffoldContext.mounted) {
-      Navigator.pop(scaffoldContext); // close "running" modal
+      Navigator.pop(scaffoldContext);
     }
 
     setState(() {
@@ -130,8 +97,10 @@ class _IdeScreenState extends State<IdeScreen> {
     if (scaffoldContext.mounted) {
       showOutputModal(scaffoldContext, _consoleOutput, _isLoading);
     }
+
     debugPrint("[DEBUG] Final console output:\n$_consoleOutput");
   }
+  // --- END integrated executor ---
 
   @override
   Widget build(BuildContext context) {

@@ -103,82 +103,46 @@ class _CodeScreenState extends State<CodeScreen> {
     }
   }
 
-  // ... [Keep existing executor logic unchanged] ...
+  // === REPLACED: integrated your old simple executor ===
   Future<void> _executePythonCode() async {
     setState(() {
       _isRunningCode = true;
     });
 
-    final List<String> tryHosts = [
-      'http://127.0.0.1:5000',
-      'http://10.0.2.2:5000',
-    ];
-
+    // Simple http execution (uses localhost)
     try {
-      if (Platform.isAndroid) {
-        tryHosts.remove('http://10.0.2.2:5000');
-        tryHosts.insert(0, 'http://10.0.2.2:5000');
-      } else if (Platform.isIOS) {
-        tryHosts.remove('http://127.0.0.1:5000');
-        tryHosts.insert(0, 'http://127.0.0.1:5000');
-      }
-    } catch (_) {}
+      final url = Uri.parse('http://127.0.0.1:5000/execute');
+      final response = await http.post(
+        url,
+        body: {'code': _codeController.text},
+      ).timeout(const Duration(seconds: 10));
 
-    String outputText = "";
-    Object? lastEx;
+      final data = jsonDecode(response.body);
 
-    for (final base in tryHosts) {
-      final url = Uri.parse('$base/execute');
-      try {
-        final response = await http
-            .post(url, body: {'code': _codeController.text}).timeout(
-                const Duration(seconds: 10));
-        final data = jsonDecode(response.body);
-        final String output = (data['output'] ?? '').toString();
-        final String error = (data['error'] ?? '').toString();
-        outputText = error.isNotEmpty ? "$output\nError: $error" : output;
-        lastEx = null;
-        break;
-      } on TimeoutException catch (te) {
-        lastEx = te;
-        continue;
-      } catch (e) {
-        lastEx = e;
-        continue;
-      }
-    }
-
-    if (lastEx != null && outputText.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  "Error: Could not reach Python server. Check logs or server status.")),
-        );
-      }
-    } else {
+      // Show result in a simple Dialog
       if (mounted) {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text("Output"),
-            content: Text(outputText),
+            content: Text(data['output'] ?? data['error']),
             actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("OK"))
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text("OK"))
             ],
           ),
         );
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
     }
 
-    if (mounted) {
-      setState(() {
-        _isRunningCode = false;
-      });
-    }
+    setState(() {
+      _isRunningCode = false;
+    });
   }
+  // === end integrated executor ===
 
   @override
   Widget build(BuildContext context) {
@@ -331,11 +295,7 @@ class _CodeScreenState extends State<CodeScreen> {
                 elevation: 0,
               ),
               onPressed: () {
-                Navigator.push<String?>(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) =>
-                            IdeScreen(initialCode: _guideCode))).then(
+                Navigator.push<String?>(context, MaterialPageRoute(builder: (context) => IdeScreen(initialCode: _guideCode))).then(
                   (submittedCode) async {
                   if (submittedCode != null) {
                     if (widget.contentID != null) {
@@ -347,12 +307,12 @@ class _CodeScreenState extends State<CodeScreen> {
                           'submitted_at': DateTime.now().toIso8601String(),
                         });
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Submission saved.')));
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Submission saved.')));
                         }
                         try {
+                          // NOTE: ProgressService signature expects moduleId & lessonId
                           await ProgressService().markLessonAsCompleted(
-                            roomId: widget.roomId,
+                            roomId: widget.roomId, 
                             moduleId: widget.moduleId,
                             lessonId: widget.lessonId,
                           );
@@ -361,14 +321,12 @@ class _CodeScreenState extends State<CodeScreen> {
                         }
                       } catch (e) {
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Submit failed: $e')));
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Submit failed: $e')));
                         }
                       }
                     } else {
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Code returned from IDE.')));
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code returned from IDE.')));
                       }
                     }
                   }

@@ -44,11 +44,11 @@ Future<void> main() async {
   await initIdeTheme(); // This is your function
 
   // --- 6. START THE PYTHON SERVER ---
-  /*SeriousPython.run("assets/python_assets/final_bundle.zip", appFileName: "main.py").then((_) {
+  SeriousPython.run("assets/python_assets/final_bundle.zip", appFileName: "main.py").then((_) {
     print("Python server process has started in the background.");
   }).catchError((e) {
     print("Error starting Python server in background: $e");
-  });*/
+  });
 
   // --- 7. RUN YOUR APP ---
   runApp(const MyApp());
